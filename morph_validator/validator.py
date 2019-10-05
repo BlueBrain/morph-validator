@@ -1,6 +1,4 @@
-"""
-Example code to show complete use case.
-"""
+""""""
 import itertools
 import logging
 from enum import Enum
@@ -28,6 +26,9 @@ class DISCRETE_FEATURE_NAMES(Enum):
 class CONTINUOUS_FEATURE_NAMES(Enum):
     SECTION_LEN = 'section_lengths'
     SECTION_RADIAL_DISTANCES = 'section_radial_distances'
+    SECTION_PATH_DISTANCES = 'section_path_distances'
+    PARTITION_ASYMMETRY = 'partition_asymmetry'
+    SEGMENT_RADII = 'segment_radii'
 
 
 NEURITES = (NeuriteType.soma,
@@ -96,18 +97,19 @@ def build_valid_morphologies(morph_dirpath: Path):
     discrete_features = []
     continuous_features = []
     features_index = []
-    features_index_names = ['filename', 'mtype', 'neurite']
+    features_index_names = ['mtype', 'filename', 'neurite']
     for file in morph_dirpath.iterdir():
         if file.suffix in ['.h5', '.swc', '.asc']:
             neuron = nm.load_neuron(str(file))
             mtype = mtype_dict[neuron.name]
-            features_index.append((neuron.name, mtype))
+            features_index.append((mtype, neuron.name))
             discrete_features.append(get_discrete_features(neuron))
             continuous_features.append(get_continuous_features(neuron))
     discrete_features = pd.concat(
         discrete_features, keys=features_index, names=features_index_names)
     continuous_features = pd.concat(
         continuous_features, keys=features_index, names=features_index_names)
+    return discrete_features, continuous_features
 
 
 if __name__ == '__main__':
