@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from lxml import etree
 from neurom import NeuriteType
+from scipy import stats
 
 L = logging.getLogger(__name__)
 pd.options.display.width = 0
@@ -44,6 +45,21 @@ CUSTOM_FEATURE_LOAD = {
     }
 }
 
+MORPH_FILETYPES = ['.h5', '.swc', '.asc']
+
+
+class Features(object):
+    class INDEX(Enum):
+        MTYPE = 'mtype'
+        FILENAME = 'filename'
+        NEURITE = 'neurite'
+
+    _INDEX_NAMES = [index.value for index in INDEX]
+
+    def __init__(self, index, discrete, continuous):
+        self.discrete = pd.concat(discrete, keys=index, names=self._INDEX_NAMES)
+        self.continuous = pd.concat(continuous, keys=index, names=self._INDEX_NAMES)
+
 
 def get_discrete_features(neuron) -> pd.DataFrame:
     feature_names = [name.value for name in DISCRETE_FEATURE_NAMES]
@@ -56,7 +72,11 @@ def get_discrete_features(neuron) -> pd.DataFrame:
 def get_continuous_features(neuron) -> pd.DataFrame:
     feature_names = [name.value for name in CONTINUOUS_FEATURE_NAMES]
     df = get_features(neuron, feature_names)
-    df.loc[NeuriteType.all.name] = df.aggregate(lambda x: np.concatenate(x).tolist())
+    # `np.concatenate(x).tolist()` is used instead `np.concatenate(x)` to treat the return object
+    # as a single value. Without it pandas treat it as a Series and tries to broadcast it.
+    # When `np.concatenate(x).tolist()` returns a list of length equal to len(df) => may be an error
+    df.loc[NeuriteType.all.name] = df.aggregate(
+        lambda x: np.concatenate(x).tolist()).apply(np.array)
     return df
 
 
@@ -94,23 +114,46 @@ def build_valid_morphologies(morph_dirpath: Path):
         raise ValueError(
             '"{}" must be a directory with morphology files'.format(morph_dirpath))
     mtype_dict = get_mtype_dict(morph_dirpath.joinpath('neuronDB.xml'))
-    discrete_features = []
-    continuous_features = []
-    features_index = []
-    features_index_names = ['mtype', 'filename', 'neurite']
+    index, discrete, continuous = [], [], []
     for file in morph_dirpath.iterdir():
-        if file.suffix in ['.h5', '.swc', '.asc']:
+        if file.suffix in MORPH_FILETYPES:
             neuron = nm.load_neuron(str(file))
             mtype = mtype_dict[neuron.name]
-            features_index.append((mtype, neuron.name))
-            discrete_features.append(get_discrete_features(neuron))
-            continuous_features.append(get_continuous_features(neuron))
-    discrete_features = pd.concat(
-        discrete_features, keys=features_index, names=features_index_names)
-    continuous_features = pd.concat(
-        continuous_features, keys=features_index, names=features_index_names)
-    return discrete_features, continuous_features
+            index.append((mtype, neuron.name))
+            discrete.append(get_discrete_features(neuron))
+            continuous.append(get_continuous_features(neuron))
+    return Features(index, discrete, continuous)
+
+
+def build_test_morphologies(morph_dirpath: Path):
+    if not morph_dirpath.is_dir():
+        raise ValueError(
+            '"{}" must be a directory'.format(morph_dirpath))
+    index, discrete, continuous = [], [], []
+    for mtype_dir in morph_dirpath.iterdir():
+        mtype = mtype_dir.name
+        for file in mtype_dir.iterdir():
+            if file.suffix in MORPH_FILETYPES:
+                neuron = nm.load_neuron(str(file))
+                index.append((mtype, neuron.name))
+                discrete.append(get_discrete_features(neuron))
+                continuous.append(get_continuous_features(neuron))
+    return Features(index, discrete, continuous)
+
+
+def ks_all(feature):
+    def ks(a, b):
+        b = np.concatenate(b)
+        if a.size and b.size:
+            return stats.ks_2samp(a, b)
+
+    feature = feature.to_list()
+    return [ks(feature[i], feature[:i] + feature[i + 1:]) for i in range(0, len(feature))]
 
 
 if __name__ == '__main__':
-    build_valid_morphologies(Path('../tests/data/valid_morphologies'))
+    valid_features = build_valid_morphologies(Path('../tests/data/valid_morphologies_mini'))
+    test_features = build_test_morphologies(Path('../tests/data/test_morphologies'))
+    valid_features.continuous \
+        .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
+        .transform(ks_all)
