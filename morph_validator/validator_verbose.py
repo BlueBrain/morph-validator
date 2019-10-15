@@ -1,4 +1,6 @@
-""""""
+"""
+use separate function for each feature extraction
+"""
 import logging
 from enum import Enum
 from pathlib import Path

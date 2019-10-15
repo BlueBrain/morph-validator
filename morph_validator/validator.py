@@ -1,4 +1,6 @@
-""""""
+"""
+use pandas.DataFrame
+"""
 import itertools
 import logging
 from enum import Enum
@@ -75,8 +77,7 @@ def get_continuous_features(neuron) -> pd.DataFrame:
     # `np.concatenate(x).tolist()` is used instead `np.concatenate(x)` to treat the return object
     # as a single value. Without it pandas treat it as a Series and tries to broadcast it.
     # When `np.concatenate(x).tolist()` returns a list of length equal to len(df) => may be an error
-    df.loc[NeuriteType.all.name] = df.aggregate(
-        lambda x: np.concatenate(x).tolist()).apply(np.array)
+    df.loc[NeuriteType.all.name] = df.aggregate(lambda x: np.concatenate(x).tolist())
     return df
 
 
@@ -89,7 +90,7 @@ def get_features(neuron, feature_names) -> pd.DataFrame:
                 val = CUSTOM_FEATURE_LOAD[feature_name][neurite.name](neuron)
         if val is None:
             val = nm.get(feature_name, neuron, neurite_type=neurite)
-        df.loc[neurite.name, feature_name] = val
+        df.loc[neurite.name, feature_name] = val.tolist()
     return df
 
 
@@ -109,7 +110,7 @@ def get_mtype_dict(db_file: Path) -> dict:
     return mtype_dict
 
 
-def build_valid_morphologies(morph_dirpath: Path):
+def get_valid_morph_features(morph_dirpath: Path) -> Features:
     if not morph_dirpath.is_dir():
         raise ValueError(
             '"{}" must be a directory with morphology files'.format(morph_dirpath))
@@ -125,7 +126,7 @@ def build_valid_morphologies(morph_dirpath: Path):
     return Features(index, discrete, continuous)
 
 
-def build_test_morphologies(morph_dirpath: Path):
+def get_test_morph_features(morph_dirpath: Path) -> Features:
     if not morph_dirpath.is_dir():
         raise ValueError(
             '"{}" must be a directory'.format(morph_dirpath))
@@ -141,19 +142,71 @@ def build_test_morphologies(morph_dirpath: Path):
     return Features(index, discrete, continuous)
 
 
-def ks_all(feature):
-    def ks(a, b):
-        b = np.concatenate(b)
-        if a.size and b.size:
-            return stats.ks_2samp(a, b)
+def ks_2samp(a, b):
+    return stats.ks_2samp(a, b) + (len(a),)
 
-    feature = feature.to_list()
-    return [ks(feature[i], feature[:i] + feature[i + 1:]) for i in range(0, len(feature))]
+
+def get_ks_of_valid_features(valid_features):
+    def ks_valid(feature_series):
+        def ks(a, b):
+            b = np.concatenate(b)
+            if a and b.size:
+                return ks_2samp(a, b)
+
+        fs_list = feature_series.to_list()
+        return [ks(fs_list[i], fs_list[:i] + fs_list[i + 1:]) for i in range(0, len(fs_list))]
+
+    return valid_features.continuous \
+        .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
+        .transform(ks_valid)
+
+
+def get_ks_of_test_features(test_features, valid_features):
+    def ks_test(file_series):
+        mtype = file_series.index.get_level_values('mtype').unique()[0]
+        if not mtype in neurite_feature_distr.index.levels[0]:
+            return None
+        mtype_series = neurite_feature_distr.loc[mtype][file_series.name]
+        return [ks_2samp(fm[0], fm[1])
+                if fm[0] and fm[1] else None for fm in zip(file_series, mtype_series)]
+
+    neurite_feature_distr = valid_features.continuous \
+        .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
+        .agg(lambda feature: np.concatenate(feature).tolist())
+
+    return test_features.continuous \
+        .groupby([Features.INDEX.MTYPE.value, Features.INDEX.FILENAME.value]).transform(ks_test)
+
+
+def discrete_z_score(valid_features: Features, test_features: Features):
+    valid_mean = valid_features.discrete.groupby(
+        [Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]).mean()
+    valid_std = valid_features.discrete.groupby(
+        [Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]).std()
+    return ((test_features.discrete - valid_mean) / valid_std).dropna(how='all')
+
+
+def discrete_report(z_score: pd.DataFrame, p_value=0.05):
+    assert 0. <= p_value <= 1.
+    threshold = np.abs(stats.norm.ppf(p_value / 2.))
+    # some cells in z_score are NaN so we use `failed_neurites` + `any`
+    # instead of `valid_neurites` + `all`.
+    failed_neurites = (z_score.abs() > threshold).any(axis=1)
+    return (~failed_neurites).groupby(['filename', 'mtype']).all()
+
+
+def valid_ks_neurite_distr(valid_ks):
+    def tt(mtype_df):
+        print(mtype_df)
+        return mtype_df
+
+    return valid_ks.groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]).apply(tt)
 
 
 if __name__ == '__main__':
-    valid_features = build_valid_morphologies(Path('../tests/data/valid_morphologies_mini'))
-    test_features = build_test_morphologies(Path('../tests/data/test_morphologies'))
-    valid_features.continuous \
-        .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
-        .transform(ks_all)
+    valid_features = get_valid_morph_features(Path('../tests/data/morphologies/valid/mini'))
+    test_features = get_test_morph_features(Path('../tests/data/morphologies/test'))
+    # z_score = discrete_z_score(valid_features, test_features)
+    # discrete_report(z_score)
+    valid_ks = get_ks_of_valid_features(valid_features)
+    valid_ks_neurite_distr(valid_ks)
