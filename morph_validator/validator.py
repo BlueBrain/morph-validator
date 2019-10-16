@@ -146,6 +146,17 @@ def ks_2samp(a, b):
     return stats.ks_2samp(a, b) + (len(a),)
 
 
+def expand_ks_tuples(ks_as_tuples, ks_columns):
+    """transform tuple values to their separate columns"""
+    tmp_list = []
+    for col in ks_columns:
+        expanded_splt = ks_as_tuples.apply(lambda x: pd.Series(x[col]), axis=1)
+        columns = pd.MultiIndex.from_product([[col], ['distance', 'p', 'sample_size']])
+        expanded_splt.columns = columns
+        tmp_list.append(expanded_splt)
+    return pd.concat(tmp_list, axis=1)
+
+
 def get_ks_of_valid_features(valid_features):
     def ks_valid(feature_series):
         def ks(a, b):
@@ -156,9 +167,10 @@ def get_ks_of_valid_features(valid_features):
         fs_list = feature_series.to_list()
         return [ks(fs_list[i], fs_list[:i] + fs_list[i + 1:]) for i in range(0, len(fs_list))]
 
-    return valid_features.continuous \
+    ks_as_tuples = valid_features.continuous \
         .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
         .transform(ks_valid)
+    return expand_ks_tuples(ks_as_tuples, valid_features.continuous.columns)
 
 
 def get_ks_of_test_features(test_features, valid_features):
@@ -174,8 +186,9 @@ def get_ks_of_test_features(test_features, valid_features):
         .groupby([Features.INDEX.MTYPE.value, Features.INDEX.NEURITE.value]) \
         .agg(lambda feature: np.concatenate(feature).tolist())
 
-    return test_features.continuous \
+    ks_as_tuples = test_features.continuous \
         .groupby([Features.INDEX.MTYPE.value, Features.INDEX.FILENAME.value]).transform(ks_test)
+    return expand_ks_tuples(ks_as_tuples, test_features.continuous.columns)
 
 
 def discrete_z_score(valid_features: Features, test_features: Features):
@@ -206,7 +219,7 @@ def valid_ks_neurite_distr(valid_ks):
 if __name__ == '__main__':
     valid_features = get_valid_morph_features(Path('../tests/data/morphologies/valid/mini'))
     test_features = get_test_morph_features(Path('../tests/data/morphologies/test'))
-    # z_score = discrete_z_score(valid_features, test_features)
-    # discrete_report(z_score)
+    z_score = discrete_z_score(valid_features, test_features)
+    discrete_report(z_score)
     valid_ks = get_ks_of_valid_features(valid_features)
-    valid_ks_neurite_distr(valid_ks)
+    test_ks = get_ks_of_test_features(test_features, valid_features)
