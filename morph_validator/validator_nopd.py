@@ -22,12 +22,15 @@ MORPH_FILETYPES = ['.h5', '.swc', '.asc']
 class DISCRETE_FEATURE(Enum):
     TOTAL_LEN = 'total_length'
     NEURITE_AREA = 'total_area_per_neurite'
-    # SOMA_AREA = 'soma_surface_areas'
+    SOMA_AREA = 'soma_surface_areas'
     NEURITE_VOLUME = 'neurite_volumes'
-    # SOMA_VOLUME = 'soma_volumes'
     NUMBER_OF_SECTIONS = 'number_of_sections'
     NUMBER_OF_BIFURCATIONS = 'number_of_bifurcations'
     NUMBER_OF_TERMINATIONS = 'number_of_terminations'
+
+    @classmethod
+    def has_value(cls, value):
+        return value in [feature.value for feature in cls]
 
 
 class CONTINUOUS_FEATURE(Enum):
@@ -39,11 +42,6 @@ class CONTINUOUS_FEATURE(Enum):
 
 
 NEURITE_NAMES = [type.name for type in NeuriteType]
-DISCRETE_FEATURE_NAMES = [feature.value for feature in DISCRETE_FEATURE]
-
-
-def is_discrete_feature(feature_name: str):
-    return feature_name in DISCRETE_FEATURE_NAMES
 
 
 class Feature:
@@ -51,11 +49,18 @@ class Feature:
         self.name = feature_name.value
         self.neurite_values = OrderedDict()
         for neurite in NEURITE_NAMES:
-            val = nm.get(self.name, neuron, neurite_type=getattr(NeuriteType, neurite))
-            if is_discrete_feature(self.name):
-                val = np.sum(val) if val.size else None
-            else:
-                val = val.tolist()
+            try:
+                val = nm.get(self.name, neuron, neurite_type=getattr(NeuriteType, neurite))
+                if DISCRETE_FEATURE.has_value(self.name):
+                    val = np.sum(val) if val.size else None
+                else:
+                    val = val.tolist()
+            except AssertionError as err:
+                # None values for features without support of `neurite`
+                if 'Neurite type' in err.args[0]:
+                    val = None
+                else:
+                    raise
             self.neurite_values[neurite] = val
 
 
@@ -180,7 +185,7 @@ class MtypeDistr:
                 self.feature_distrs[feature.name].add_feature(feature)
 
         for distr in self.feature_distrs.values():
-            if is_discrete_feature(distr.feature_name):
+            if DISCRETE_FEATURE.has_value(distr.feature_name):
                 stats = DiscreteFeatureStats(distr)
             else:
                 stats = ContinuousFeatureStats(distr)
@@ -191,12 +196,12 @@ class MtypeDistr:
         continuous_data = []
         for feature in test_mfile.features.values():
             feature_stats = self.feature_stats[feature.name]
-            if is_discrete_feature(feature.name):
+            if DISCRETE_FEATURE.has_value(feature.name):
                 discrete_data.append(feature_stats.zscore(feature))
             else:
                 feature_distr = self.feature_distrs[feature.name]
                 continuous_data.append(feature_stats.zscore(feature, feature_distr))
-        discrete_zscore = pd.concat(discrete_data, axis=1)
+        discrete_zscore = pd.concat(discrete_data, axis=1, sort=True)
         continuous_zscore = pd.concat(continuous_data, axis=1)
         return pd.concat([discrete_zscore, continuous_zscore], axis=1, sort=True)
 
