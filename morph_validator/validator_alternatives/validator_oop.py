@@ -1,5 +1,5 @@
 """
-Don't use pandas DataFrame
+OOP instead of pandas.DataFrame
 """
 import logging
 from collections import OrderedDict
