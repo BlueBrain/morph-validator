@@ -24,6 +24,8 @@ setup(
     license="BBP-internal-confidential",
     install_requires=[
         'pandas',
+        'numpy',
+        'scipy',
         'neurom',
         'lxml',
     ],
