@@ -169,8 +169,7 @@ def collect_features(files_per_mtype: Dict[str, List[Path]]) -> Tuple[pd.DataFra
             index.append((mtype, neuron.name))
             discrete.append(_get_neuron_features(neuron, DISCRETE_FEATURES))
             continuous.append(_get_neuron_features(neuron, CONTINUOUS_FEATURES))
-    discrete = pd.concat(discrete, keys=index, names=FEATURES_INDEX) \
-        .applymap(lambda x: [np.sum(x)] if x else [])
+    discrete = pd.concat(discrete, keys=index, names=FEATURES_INDEX).applymap(np.sum)
     continuous = pd.concat(continuous, keys=index, names=FEATURES_INDEX)
     return discrete, continuous
 
@@ -179,13 +178,16 @@ def _ks_2samp(l1: List, l2: List) -> Tuple:
     """scipy.stats.ks_2samp of two lists + the size of the first list.
 
     Args:
-        l1: non empty list
-        l2: non empty list
+        l1: first list
+        l2: second list
 
     Returns:
-        tuple of `(ks.distance, ks.pvalue, l1 size)`
+        tuple of `(ks.distance, ks.pvalue, l1 size)`. (NaN, NaN, NaN) is returned if any of
+        arguments is empty.
     """
-    return stats.ks_2samp(l1, l2) + (len(l1),)
+    if l1 and l2:
+        return stats.ks_2samp(l1, l2) + (len(l1),)
+    return np.nan, np.nan, np.nan
 
 
 def _expand_ks_tuples_to_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -197,13 +199,9 @@ def _expand_ks_tuples_to_columns(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         dataframe where each tuple value in its column
     """
-    tmp_list = []
-    for col in df.columns:
-        expanded_splt = df.apply(lambda x, col=col: pd.Series(x[col]), axis=1)
-        columns = pd.MultiIndex.from_product([[col], KS_INDEX])
-        expanded_splt.columns = columns
-        tmp_list.append(expanded_splt)
-    return pd.concat(tmp_list, axis=1)
+    data = df.agg(np.concatenate, axis=1).to_numpy()
+    column_index = pd.MultiIndex.from_product([df.columns, KS_INDEX])
+    return pd.DataFrame(np.stack(data), index=df.index, columns=column_index)
 
 
 def _get_ks_among_features(features: pd.DataFrame) -> pd.DataFrame:
@@ -226,15 +224,11 @@ def _get_ks_among_features(features: pd.DataFrame) -> pd.DataFrame:
         Returns:
             list of `ks_2samp` of each series value to the rest of values.
         """
-
-        def ks_among(a, b):
-            b = np.concatenate(b)
-            if a and b.size:
-                return _ks_2samp(a, b.tolist())
-            return None, None, None
+        def flat_concat(l1, l2):
+            return list(itertools.chain(*l1, *l2))
 
         fs_list = feature_series.to_list()
-        return [ks_among(fs_list[i], fs_list[:i] + fs_list[i + 1:])
+        return [_ks_2samp(fs_list[i], flat_concat(fs_list[:i], fs_list[i + 1:]))
                 for i in range(0, len(fs_list))]
 
     ks_as_tuples = (features
@@ -263,13 +257,12 @@ def _get_ks_features_to_distr(features: pd.DataFrame, distr: pd.DataFrame) -> pd
             list of `ks_2samp` of each series value to its distribution.
         """
         mtype = file_series.index.get_level_values('mtype').unique()[0]
-        if mtype not in distr.index.levels[0]:
-            return []
         mtype_series = distr.loc[mtype][file_series.name]
-        return [_ks_2samp(fm[0], fm[1])
-                if fm[0] and fm[1] else None for fm in zip(file_series, mtype_series)]
+        return [_ks_2samp(file_, mtype) for file_, mtype in zip(file_series, mtype_series)]
 
-    ks_as_tuples = (features
+    distr_mtypes = distr.index.get_level_values('mtype').unique()
+    distr_mtype_index = [idx[0] in distr_mtypes for idx in features.index]
+    ks_as_tuples = (features[distr_mtype_index]
                     .groupby(['mtype', 'filename'])
                     .transform(ks_test))
     return _expand_ks_tuples_to_columns(ks_as_tuples)
@@ -296,6 +289,7 @@ def get_discrete_distr_stats(discrete_features: pd.DataFrame) -> DistrAndStats:
     Returns:
         Distribution and statistics of discrete features.
     """
+    discrete_features = discrete_features.applymap(lambda x: [x])
     discrete_distr = get_features_distrs(discrete_features)
     return DistrAndStats(discrete_distr, Stats(discrete_distr))
 

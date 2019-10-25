@@ -1,5 +1,4 @@
 """Sample nosetest file."""
-import itertools
 from pathlib import Path
 
 import neurom as nm
@@ -84,17 +83,15 @@ def test_collect_features(morphologies_path):
                       for neurite in NeuriteType}
     assert set(discrete_features.index) - expected_index == set()
     assert set(continuous_features.index) - expected_index == set()
-    for col in itertools.chain(continuous_features.to_numpy(), discrete_features.to_numpy()):
+    for col in continuous_features.to_numpy():
         for cell in col:
             assert isinstance(cell, list)
+    assert np.issubdtype(discrete_features.to_numpy().dtype, np.number)
 
 
 def test_ks_2samp():
-    ks = validator._ks_2samp([1], [1, 2])
-    assert ks == (0.5, 1, 1)
-
-    with pytest.raises(ValueError):
-        validator._ks_2samp([], [1, 2])
+    assert validator._ks_2samp([1], [1, 2]) == (0.5, 1, 1)
+    assert validator._ks_2samp([], [1, 2]) == (np.nan, np.nan, np.nan)
 
 
 def test_expand_ks_tuples_to_columns():
@@ -164,10 +161,10 @@ def test_get_discrete_distr_stats():
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
         names=validator.FEATURES_INDEX)
     data = [
-        [[1]],
-        [[2]],
-        [[1]],
-        [[2]]]
+        [1],
+        [2],
+        [1],
+        [2]]
     features = pd.DataFrame(data, columns=columns, index=features_index)
     distr, stats = validator.get_discrete_distr_stats(features)
 
