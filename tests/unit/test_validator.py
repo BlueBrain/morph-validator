@@ -94,22 +94,11 @@ def test_ks_2samp():
     assert validator._ks_2samp([], [1, 2]) == (np.nan, np.nan, np.nan)
 
 
-def test_expand_ks_tuples_to_columns():
-    columns = ['feature1', 'feature2']
-    data = [[(1, 1, 1), (2, 2, 2)],
-            [(3, 3, 3), (4, 4, 4)]]
-    tuples_df = pd.DataFrame(data, columns=columns)
-
-    actual_df = validator._expand_ks_tuples_to_columns(tuples_df)
-    expected_columns = pd.MultiIndex.from_product([columns, validator.KS_INDEX])
-    expected_df = pd.DataFrame([np.concatenate(d_i) for d_i in data], columns=expected_columns)
-    assert actual_df.equals(expected_df)
-
-
 def test_get_ks_among_features():
     index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2', 'filename3'], ['neurite1']],
         names=validator.FEATURES_INDEX)
+    columns = ['a']
     data = [
         [[1, 1]],
         [[2]],
@@ -117,9 +106,10 @@ def test_get_ks_among_features():
         [[1]],
         [[2, 2]],
         [[2, 2, 2]]]
-    features_df = pd.DataFrame(data, columns=['a'], index=index)
+    features_df = pd.DataFrame(data, columns=columns, index=index)
 
     ks_df = validator._get_ks_among_features(features_df)
+    expected_columns = pd.MultiIndex.from_product([columns, validator.KS_INDEX])
     expected_ks_values = [
         [0.25, 1, 2],
         [1, 0.33333333, 1],
@@ -127,6 +117,7 @@ def test_get_ks_among_features():
         [1, 0.33333333, 1],
         [0.25, 1, 2],
         [0.33333333, 1, 3]]
+    assert ks_df.columns.equals(expected_columns)
     assert np.allclose(ks_df, expected_ks_values)
 
 
@@ -147,11 +138,13 @@ def test_get_ks_features_to_distr():
     distr_df = pd.DataFrame([[[1, 1, 1]], [[2, 2, 2]]], columns=columns, index=distr_index)
     ks_df = validator._get_ks_features_to_distr(features_df, distr_df)
 
+    expected_columns = pd.MultiIndex.from_product([columns, validator.KS_INDEX])
     expected_ks_values = [
         [0., 1., 2],
         [1., 0.5, 1],
         [1., 0.5, 1],
         [0., 1., 2]]
+    assert ks_df.columns.equals(expected_columns)
     assert np.allclose(ks_df, expected_ks_values)
 
 

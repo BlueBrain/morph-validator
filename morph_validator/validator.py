@@ -159,8 +159,8 @@ def collect_features(files_per_mtype: Dict[str, List[Path]]) -> Tuple[pd.DataFra
         files_per_mtype: collection of files per mtype
 
     Returns:
-        container where `.discrete` field is a dataframe of all discrete features for all files,
-        `.continuous` field is a dataframe of all continuous features for all files.
+        a dataframe of all discrete features for all files,
+        a dataframe of all continuous features for all files.
     """
     index, discrete, continuous = [], [], []
     for mtype, files in files_per_mtype.items():
@@ -190,20 +190,6 @@ def _ks_2samp(l1: List, l2: List) -> Tuple:
     return np.nan, np.nan, np.nan
 
 
-def _expand_ks_tuples_to_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Expands tuple values of DataFrame to their own columns.
-
-    Args:
-        df: dataframe with tuple values
-
-    Returns:
-        dataframe where each tuple value in its column
-    """
-    data = df.agg(np.concatenate, axis=1).to_numpy()
-    column_index = pd.MultiIndex.from_product([df.columns, KS_INDEX])
-    return pd.DataFrame(np.stack(data), index=df.index, columns=column_index)
-
-
 def _get_ks_among_features(features: pd.DataFrame) -> pd.DataFrame:
     """Calculates `scipy.stats.ks_2samp` among each Index row and the rest of Index for each
     feature.
@@ -215,26 +201,22 @@ def _get_ks_among_features(features: pd.DataFrame) -> pd.DataFrame:
         dataframe of `ks_2samp` stats.
     """
 
-    def ks_feature(feature_series: pd.Series) -> List:
-        """Test
-
-        Args:
-            feature_series: series of single feature values
-
-        Returns:
-            list of `ks_2samp` of each series value to the rest of values.
-        """
+    def get_ks_per_feature(feature: pd.Series) -> pd.DataFrame:
         def flat_concat(l1, l2):
             return list(itertools.chain(*l1, *l2))
 
-        fs_list = feature_series.to_list()
-        return [_ks_2samp(fs_list[i], flat_concat(fs_list[:i], fs_list[i + 1:]))
+        fs_list = feature.to_list()
+        data = [_ks_2samp(fs_list[i], flat_concat(fs_list[:i], fs_list[i + 1:]))
                 for i in range(0, len(fs_list))]
+        return pd.DataFrame(data, index=feature.index, columns=KS_INDEX)
 
-    ks_as_tuples = (features
-                    .groupby(['mtype', 'neurite'])
-                    .transform(ks_feature))
-    return _expand_ks_tuples_to_columns(ks_as_tuples)
+    def get_ks_per_neurite(mtype_df):
+        ks_features = []
+        for feature in mtype_df:
+            ks_features.append(get_ks_per_feature(mtype_df[feature]))
+        return pd.concat(ks_features, axis=1, keys=mtype_df.columns)
+
+    return features.groupby(['mtype', 'neurite']).apply(get_ks_per_neurite)
 
 
 def _get_ks_features_to_distr(features: pd.DataFrame, distr: pd.DataFrame) -> pd.DataFrame:
@@ -249,23 +231,22 @@ def _get_ks_features_to_distr(features: pd.DataFrame, distr: pd.DataFrame) -> pd
         dataframe of `ks_2samp` stats.
     """
 
-    def ks_test(file_series: pd.Series) -> List:
-        """
-        Args:
-            file_series: series of single file values
-        Returns:
-            list of `ks_2samp` of each series value to its distribution.
-        """
-        mtype = file_series.index.get_level_values('mtype').unique()[0]
-        mtype_series = distr.loc[mtype][file_series.name]
-        return [_ks_2samp(file_, mtype) for file_, mtype in zip(file_series, mtype_series)]
+    def get_ks_per_feature(feature: pd.Series) -> pd.DataFrame:
+        mtype = feature.index.get_level_values('mtype').unique()[0]
+        mtype_series = distr.loc[mtype][feature.name]
+        data = [_ks_2samp(file_, mtype) for file_, mtype in zip(feature, mtype_series)]
+        return pd.DataFrame(data, index=feature.index, columns=KS_INDEX)
+
+    def get_ks_per_file(file_df: pd.DataFrame) -> pd.DataFrame:
+        ks_features = []
+        for feature in file_df:
+            ks_features.append(get_ks_per_feature(file_df[feature]))
+        return pd.concat(ks_features, axis=1, keys=file_df.columns)
 
     distr_mtypes = distr.index.get_level_values('mtype').unique()
-    distr_mtype_index = [idx[0] in distr_mtypes for idx in features.index]
-    ks_as_tuples = (features[distr_mtype_index]
-                    .groupby(['mtype', 'filename'])
-                    .transform(ks_test))
-    return _expand_ks_tuples_to_columns(ks_as_tuples)
+    distr_features = features.groupby('mtype').filter(
+        lambda x: x.index.get_level_values('mtype').unique()[0] in distr_mtypes)
+    return distr_features.groupby(['mtype', 'filename']).apply(get_ks_per_file)
 
 
 def get_features_distrs(features: pd.DataFrame) -> pd.DataFrame:
