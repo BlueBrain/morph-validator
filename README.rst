@@ -16,12 +16,14 @@ Usage
 
 .. code:: python
 
-    failed_features_per_file = validate(
+    scores = validate(
         Path('../tests/data/morphologies/valid/mini'),
         Path('../tests/data/morphologies/test'))
-    for file_failed_features in failed_features_per_file:
+    for file_failed_features in failed_scores(scores, 1.):
         print(file_failed_features)
         print('--------------------------------------')
+
+Also see :file:`examples/intro.ipynb` for short introduction on some usecases.
 
 Important
 ---------

@@ -148,7 +148,7 @@ def test_get_ks_features_to_distr():
     assert np.allclose(ks_df, expected_ks_values)
 
 
-def test_get_discrete_distr_stats():
+def test_get_discrete_distr():
     columns = ['feature1']
     features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
@@ -159,23 +159,18 @@ def test_get_discrete_distr_stats():
         [1],
         [2]]
     features = pd.DataFrame(data, columns=columns, index=features_index)
-    distr, stats = validator.get_discrete_distr_stats(features)
+    distr = validator.get_discrete_distr(features)
 
     expected_index = pd.MultiIndex.from_product([['type1', 'type2'], ['neurite1']])
     assert expected_index.equal_levels(distr.index)
-    assert expected_index.equal_levels(stats.mean.index)
-    assert expected_index.equal_levels(stats.std.index)
 
     assert np.array_equal([1, 2], distr.loc['type1', 'neurite1'][0])
     assert distr.loc['type1', 'neurite1'].size == 1
     assert np.array_equal([1, 2], distr.loc['type2', 'neurite1'][0])
     assert distr.loc['type2', 'neurite1'].size == 1
 
-    assert np.allclose(stats.mean, [1.5, 1.5])
-    assert np.allclose(stats.std, [.5, .5])
 
-
-def test_get_continuous_distr_stats():
+def test_get_continuous_distr():
     columns = ['feature1']
     features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
@@ -186,39 +181,47 @@ def test_get_continuous_distr_stats():
         [[1]],
         [[2, 2]]]
     features = pd.DataFrame(data, columns=columns, index=features_index)
-    distr, stats = validator.get_continuous_distr_stats(features)
+    distr = validator.get_continuous_distr(features)
 
     expected_index = pd.MultiIndex.from_product([['type1', 'type2'], ['neurite1']])
-    assert expected_index.equal_levels(distr.index)
-    assert expected_index.equal_levels(stats.mean.index)
-    assert expected_index.equal_levels(stats.std.index)
+    assert expected_index.equal_levels(distr.distr.index)
+    assert expected_index.equal_levels(distr.ks_distr.index)
 
-    assert np.array_equal([1, 1, 2], distr.loc['type1', 'neurite1'][0])
-    assert distr.loc['type1', 'neurite1'].size == 1
-    assert np.array_equal([1, 2, 2], distr.loc['type2', 'neurite1'][0])
-    assert distr.loc['type2', 'neurite1'].size == 1
-
-    assert np.allclose(stats.mean, [[1.0, 0.666667, 1.5], [1.0, 0.666667, 1.5]])
-    assert np.allclose(stats.std, [[0, 0, .5], [0, 0, .5]])
+    assert np.array_equal([1, 1, 2], distr.distr.loc['type1', 'neurite1'][0])
+    assert distr.distr.loc['type1', 'neurite1'].size == 1
+    assert np.array_equal([1, 2, 2], distr.distr.loc['type2', 'neurite1'][0])
+    assert distr.distr.loc['type2', 'neurite1'].size == 1
 
 
-def test_get_discrete_zscores():
+def test_stats():
+    columns = ['feature1']
+    features_index = pd.MultiIndex.from_product(
+        [['type1', 'type2'], ['neurite1']],
+        names=['mtype', 'neurite'])
+    data = [[[1, 2, 3, 4, 5]], [[5, 6, 7, 8, 9]]]
+    distr = pd.DataFrame(data, columns=columns, index=features_index)
+    stats = validator.Stats(distr, 50)
+    assert np.allclose(stats.median.to_numpy().flatten(), [3., 7.])
+    assert np.allclose(stats.iqr.to_numpy().flatten(), [2., 2.])
+
+
+def test_get_discrete_scores():
     columns = ['feature1', 'feature2']
     features_index = pd.MultiIndex.from_product(
         [['type1'], ['filename1', 'filename2'], ['neurite1']],
         names=validator.FEATURES_INDEX)
     features = pd.DataFrame(
-        [[1, 1],
-         [2, 2]], columns=columns, index=features_index)
+        [[1, 3],
+         [2, 4]], columns=columns, index=features_index)
     distr_index = features_index.droplevel('filename').drop_duplicates()
-    distr = pd.DataFrame([[[1, 2, 3], [1, 2, 3]]], columns=columns, index=distr_index)
-    stats = validator.Stats(distr)
-    zscores = validator.get_discrete_zscores(validator.DistrAndStats(distr, stats), features)
-    assert np.allclose(zscores, [[-1.224745, -1.224745],
-                                 [0.0, 0.0]])
+    distr = pd.DataFrame([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], columns=columns, index=distr_index)
+    stats = validator.Stats(distr, 50)
+    scores = validator.get_discrete_scores(stats, features)
+    assert np.allclose(scores, [[-1., 0.],
+                                 [-.5, .5]])
 
 
-def test_get_continuous_zscores():
+def test_get_continuous_scores():
     columns = ['feature3', 'feature4']
     features_index = pd.MultiIndex.from_product(
         [['type1'], ['filename1', 'filename2'], ['neurite1']],
@@ -231,14 +234,14 @@ def test_get_continuous_zscores():
     stats = validator.Stats(pd.DataFrame(
         [[[1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1]]],
         columns=pd.MultiIndex.from_product([columns, validator.KS_INDEX]),
-        index=distr_index))
-    zscores = validator.get_continuous_zscores(validator.DistrAndStats(distr, stats), features)
-    assert np.allclose(zscores,
-        [[-1.414214, -0.707107, -0.707107, -0.707107, -1.767767, -0.707107],
-         [-2.121320, -0.707107, 1.414214, -0.707107, -2.404163, 1.414214]])
+        index=distr_index), 95)
+    scores = validator.get_continuous_scores(distr, stats, features)
+    assert np.allclose(scores,
+        [[-.35088, 0., 0., 0., -.52632, 0.],
+         [-.70175, 0., 1.05263, 0., -.84211, 1.05263]])
 
 
-def test_failed_features():
+def test_failed_scores():
     discrete_columns = ['feature1', 'feature2']
     continuous_columns = ['feature3', 'feature4']
     features_index = pd.MultiIndex.from_product(
@@ -250,12 +253,12 @@ def test_failed_features():
     discrete_data = [
         [-1.96, 0.3],
         [.5, .6]]
-    discrete_zscores = pd.DataFrame(discrete_data, columns=discrete_columns, index=features_index)
-    continuous_zscores = pd.DataFrame(
+    discrete_scores = pd.DataFrame(discrete_data, columns=discrete_columns, index=features_index)
+    continuous_scores = pd.DataFrame(
         continuous_data, columns=continuous_columns, index=features_index)
-    zscores = pd.concat([discrete_zscores, continuous_zscores], axis=1, sort=True)
-    failed_features = validator.failed_features(zscores)
-    assert len(failed_features) == 2
-    assert np.array_equal(failed_features[0].columns, ['feature1', 'feature4'])
-    assert np.allclose(failed_features[0], [-1.96, 2.0])
-    assert failed_features[1].empty
+    scores = pd.concat([discrete_scores, continuous_scores], axis=1, sort=True)
+    failed_scores = validator.failed_scores(scores, 1.95)
+    assert len(failed_scores) == 2
+    assert np.array_equal(failed_scores[0].columns, ['feature1', 'feature4'])
+    assert np.allclose(failed_scores[0], [-1.96, 2.0])
+    assert failed_scores[1].empty

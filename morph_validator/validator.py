@@ -61,22 +61,26 @@ _FEATURE_CUSTOM_GETTERS = {
 class Stats:
     """Statistics holder of distribution"""
 
-    def __init__(self, distr: pd.DataFrame, ci: float = 95):
+    def __init__(self, distr: pd.DataFrame, ci: float):
         """Builds stats from distribution according confidence interval.
 
         Args:
             distr: dataframe of values distribution to take stats from
-            ci: confidence interval in percents
+            ci: confidence interval range in percents
         """
-        assert 0. < ci < 100.
+        assert 0 < ci < 100
         self.median = distr.applymap(lambda x: np.median(x) if len(x) > 0 else np.nan)
         self.mean = distr.applymap(lambda x: np.mean(x) if len(x) > 0 else np.nan)
         self.std = distr.applymap(lambda x: np.std(x) if len(x) > 0 else np.nan)
-        # self.percentile_low = distr.applymap(lambda x: np.percentile(x, (100 - ci) / 2.))
-        # self.percentile_up = distr.applymap(lambda x: np.percentile(x, (100 - ci) / 2 + ci))
+        percentile_min = distr.applymap(
+            lambda x: np.percentile(x, (100 - ci) / 2.) if len(x) > 0 else np.nan)
+        percentile_max = distr.applymap(
+            lambda x: np.percentile(x, (100 + ci) / 2.) if len(x) > 0 else np.nan)
+        # Interquartile Range
+        self.iqr = (percentile_max - percentile_min).abs()
 
 
-DistrAndStats = namedtuple('DistrAndStats', 'distr stats')
+ContinuousDistr = namedtuple('ContinuousDistr', 'distr ks_distr')
 
 
 def _get_neuron_features(neuron: FstNeuron, feature_names: List[str]) -> pd.DataFrame:
@@ -96,10 +100,7 @@ def _get_neuron_features(neuron: FstNeuron, feature_names: List[str]) -> pd.Data
             val = _FEATURE_CUSTOM_GETTERS[feature_name](neuron, neurite)
         else:
             val = nm.get(feature_name, neuron, neurite_type=neurite)
-        val = val.tolist()
-        if len(val) == 1 and val[0] == 0:
-            val = []
-        df.loc[neurite.name, feature_name] = val
+        df.loc[neurite.name, feature_name] = val.tolist()
     return df
 
 
@@ -261,28 +262,26 @@ def get_features_distrs(features: pd.DataFrame) -> pd.DataFrame:
     return features.groupby(['mtype', 'neurite']).agg('sum')
 
 
-def get_discrete_distr_stats(discrete_features: pd.DataFrame) -> DistrAndStats:
-    """Distribution and statistics of discrete features.
+def get_discrete_distr(discrete_features: pd.DataFrame) -> pd.DataFrame:
+    """Distribution of discrete features.
 
     Args:
         discrete_features: discrete features
 
     Returns:
-        Distribution and statistics of discrete features.
+        Distribution of discrete features.
     """
-    discrete_features = discrete_features.applymap(lambda x: [x])
-    discrete_distr = get_features_distrs(discrete_features)
-    return DistrAndStats(discrete_distr, Stats(discrete_distr))
+    return get_features_distrs(discrete_features.applymap(lambda x: [x]))
 
 
-def get_continuous_distr_stats(continuous_features: pd.DataFrame) -> DistrAndStats:
-    """Distribution and statistics of continuous features.
+def get_continuous_distr(continuous_features: pd.DataFrame) -> ContinuousDistr:
+    """Distribution of continuous features.
 
     Args:
         continuous_features: continuous features
 
     Returns:
-        Distribution and statistics of continuous features.
+        Distribution of continuous features.
     """
     continuous_distr = get_features_distrs(continuous_features)
     continuous_ks = _get_ks_among_features(continuous_features)
@@ -290,83 +289,85 @@ def get_continuous_distr_stats(continuous_features: pd.DataFrame) -> DistrAndSta
                            .applymap(lambda x: [x] if not np.isnan(x) else [])
                            .groupby(['mtype', 'neurite'])
                            .agg('sum'))
-    return DistrAndStats(continuous_distr, Stats(continuous_ks_distr))
+    return ContinuousDistr(continuous_distr, continuous_ks_distr)
 
 
-def _reorder_zscores(zscores):
-    return (zscores
+def _reorder_scores(scores):
+    return (scores
             .reorder_levels(FEATURES_INDEX)
             .sort_index()
             .dropna(how='all'))
 
 
-def get_discrete_zscores(discrete_distr_stats: DistrAndStats,
-                         discrete_features: pd.DataFrame) -> pd.DataFrame:
-    """Z scores of discrete features against discrete distributions and statistics.
+def get_discrete_scores(discrete_stats: Stats,
+                        discrete_features: pd.DataFrame) -> pd.DataFrame:
+    """Scores of discrete features against discrete statistics. Scores can be negative.
 
     Args:
-        discrete_distr_stats: discrete distributions and its statistics
+        discrete_stats: discrete statistics
         discrete_features: discrete features
 
     Returns:
-        Z scores of discrete features against discrete distributions and statistics
+        Dataframe of scores.
     """
-    _, _stats = discrete_distr_stats
-    return _reorder_zscores((discrete_features - _stats.mean) / _stats.std)
+    return _reorder_scores((discrete_features - discrete_stats.median) / discrete_stats.iqr)
 
 
-def get_continuous_zscores(continuous_distr_stats: DistrAndStats,
-                           continuous_features: pd.DataFrame) -> pd.DataFrame:
-    """Z scores of continuous features against continuous distributions and statistics.
+def get_continuous_scores(continuous_distr: pd.DataFrame, continuous_stats: Stats,
+                          continuous_features: pd.DataFrame) -> pd.DataFrame:
+    """Scores of continuous features against continuous distributions and statistics.
+    Scores can be negative.
 
     Args:
-        continuous_distr_stats: continuous distributions and its statistics
+        continuous_distr: continuous distributions
+        continuous_stats: continuous statistics
         continuous_features: continuous features
 
     Returns:
-        Z scores of continuous features against continuous distributions and statistics
+        Dataframe of scores.
     """
-    distr, _stats = continuous_distr_stats
-    continuous_ks = _get_ks_features_to_distr(continuous_features, distr)
-    return _reorder_zscores((continuous_ks - _stats.mean) / _stats.std)
+    continuous_ks = _get_ks_features_to_distr(continuous_features, continuous_distr)
+    return _reorder_scores((continuous_ks - continuous_stats.median) / continuous_stats.iqr)
 
 
-def failed_features(zscores: pd.DataFrame, p_value=0.05) -> List[pd.DataFrame]:
-    """dataframe of failed features for each tested morphology.
-
-    Args:
-        zscores: features Z scores
-        p_value:
-
-    Returns:
-        list of dataframes of failed features
-    """
-    assert 0. <= p_value <= 1.
-    threshold = np.abs(stats.norm.ppf(p_value / 2.))
-    # some cells in z_score are NaN so we use `> threshold` + `any`
-    # instead of `<= threshold` + `all`.
-    return [grp[1].loc[:, (grp[1].abs() > threshold).any(axis=0)]
-            for grp in zscores.groupby(['mtype', 'filename'])]
-
-
-def validate(valid_dir: Path, test_dir: Path) -> List[pd.DataFrame]:
+def validate(valid_dir: Path, test_dir: Path, ci: float = 95) -> pd.DataFrame:
     """Validates directory of test morphologies against directory of valid morphologies.
 
     Args:
         valid_dir: directory of valid morphologies files
         test_dir: directory of test morphologies files
+        ci: confidence interval range in percents
 
     Returns:
-        list of failed features for each test file
+        Dataframe of features scores for each test file. Each score is:
+        (feature value - feature median) / (feature interquartile range for ci).
     """
     valid_files_per_mtype = get_valid_files_per_mtype(valid_dir)
     valid_discrete_features, valid_continuous_features = collect_features(valid_files_per_mtype)
-    valid_discrete_distr_stats = get_discrete_distr_stats(valid_discrete_features)
-    valid_continuous_distr_stats = get_continuous_distr_stats(valid_continuous_features)
+    valid_discrete_distr = get_discrete_distr(valid_discrete_features)
+    valid_discrete_stats = Stats(valid_discrete_distr, ci)
+    valid_continuous_distr = get_continuous_distr(valid_continuous_features)
+    valid_continuous_stats = Stats(valid_continuous_distr.ks_distr, ci)
     test_files_per_mtype = get_test_files_per_mtype(test_dir)
     test_discrete_features, test_continuous_features = collect_features(test_files_per_mtype)
-    discrete_zscores = get_discrete_zscores(valid_discrete_distr_stats, test_discrete_features)
-    continuous_zscores = get_continuous_zscores(
-        valid_continuous_distr_stats, test_continuous_features)
-    zscores = pd.concat([discrete_zscores, continuous_zscores], axis=1, sort=True)
-    return failed_features(zscores)
+    discrete_scores = get_discrete_scores(valid_discrete_stats, test_discrete_features)
+    continuous_scores = get_continuous_scores(
+        valid_continuous_distr.distr, valid_continuous_stats, test_continuous_features)
+    return pd.concat([discrete_scores, continuous_scores], axis=1, sort=True)
+
+
+def failed_scores(scores: pd.DataFrame, threshold: float = 0.5) -> List[pd.DataFrame]:
+    """Checks what features failed.
+
+    Args:
+        scores: dataframe of features scores for each test morphology
+        threshold: scores higher than this are considered as failed.
+
+    Returns:
+        List of dataframes with failed features per test morphology.
+    """
+    assert threshold > 0
+    # some cells in z_score are NaN so we use `> threshold` + `any`
+    # instead of `<= threshold` + `all`.
+    return [grp[1].loc[:, (grp[1].abs() > threshold).any(axis=0)]
+            for grp in scores.groupby(['mtype', 'filename'])]
