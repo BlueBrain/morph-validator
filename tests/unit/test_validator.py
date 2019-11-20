@@ -16,10 +16,10 @@ def morphologies_path():
     return this_path.parent.parent.joinpath('data', 'morphologies')
 
 
-def test_get_soma_area(morphologies_path):
+def test_get_soma_feature(morphologies_path):
     neuron = nm.load_neuron(morphologies_path.joinpath('test', 'Unknown', 'ca3b-N2.CNG.swc'))
     for neurite in validator.NeuriteType:
-        area = validator._get_soma_area(neuron, neurite)
+        area = validator._get_soma_feature('soma_surface_areas', neuron, neurite)
         if neurite == NeuriteType.soma:
             assert np.allclose(area, np.array([370.96746105]), 1e-10, 1e-10)
         else:

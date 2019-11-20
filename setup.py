@@ -26,7 +26,7 @@ setup(
         'pandas',
         'numpy',
         'scipy',
-        'neurom',
+        'neurom>=1.4.15',
         'lxml',
     ],
     packages=find_packages(),

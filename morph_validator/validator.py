@@ -5,6 +5,7 @@ API for single morphology validation.
 import itertools
 import logging
 from collections import defaultdict, namedtuple
+from functools import partial
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -26,6 +27,7 @@ DISCRETE_FEATURES = [
     'total_area_per_neurite',
     'soma_surface_areas',
     'neurite_volumes',
+    'soma_volumes',
     'number_of_sections',
     'number_of_bifurcations',
     'number_of_terminations',
@@ -39,22 +41,24 @@ CONTINUOUS_FEATURES = [
 ]
 
 
-def _get_soma_area(neuron: FstNeuron, neurite: NeuriteType) -> np.array:
+def _get_soma_feature(feature: str, neuron: FstNeuron, neurite: NeuriteType) -> np.array:
     """Gets soma area
 
     Args:
+        feature: feature of neurom
         neuron: neuron object from neurom
         neurite: neurite of neuron
     Returns:
         Soma area value of neuron
     """
     if neurite == NeuriteType.soma:
-        return nm.get('soma_surface_areas', neuron)
+        return nm.get(feature, neuron)
     return np.empty(0)
 
 
 _FEATURE_CUSTOM_GETTERS = {
-    'soma_surface_areas': _get_soma_area,
+    'soma_surface_areas': partial(_get_soma_feature, 'soma_surface_areas'),
+    'soma_volumes': partial(_get_soma_feature, 'soma_volumes'),
 }
 
 
