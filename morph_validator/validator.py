@@ -3,7 +3,7 @@ API for single morphology validation.
 """
 
 import itertools
-import logging
+import warnings
 from collections import defaultdict, namedtuple
 from functools import partial
 from pathlib import Path
@@ -17,7 +17,6 @@ from neurom import NeuriteType
 from neurom.fst import FstNeuron
 from scipy import stats
 
-L = logging.getLogger(__name__)
 pd.options.display.width = 0
 MORPH_FILETYPES = ['.h5', '.swc', '.asc']
 KS_INDEX = ['distance', 'p', 'sample_size']
@@ -108,28 +107,74 @@ def _get_neuron_features(neuron: FstNeuron, feature_names: List[str]) -> pd.Data
     return df
 
 
-def get_valid_files_per_mtype(valid_dir: Path) -> Dict[str, List[Path]]:
-    """Gets valid morphologies files from a target directory.
+def get_valid_mtype_files(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
+    """Gets valid morphologies files.
 
     Args:
-        valid_dir: directory with valid morphologies files
+        valid_mtype_db_file: file of mappings between morphology name and mtype. Morphology files
+        must be located in the same directory as this file.
 
     Returns:
         dictionary of files per mtype
     """
-    db_file = valid_dir.joinpath('neuronDB.xml')
-    if not valid_dir.is_dir() or not db_file.exists():
-        raise ValueError(
-            '"{}" must be a directory with morphology files and "neuronDB.xml"'.format(valid_dir))
-    root = etree.parse(str(db_file)).getroot()
+    if valid_mtype_db_file.suffix == '.xml':
+        mtype_dict = _get_valid_mtype_files_xml(valid_mtype_db_file)
+    elif valid_mtype_db_file.suffix == '.dat':
+        mtype_dict = _get_valid_mtype_files_dat(valid_mtype_db_file)
+    else:
+        raise ValueError('{} must have an .xml or .dat extension'.format(valid_mtype_db_file.name))
+    if len(mtype_dict.keys()) == 0:
+        raise ValueError('No mtypes in {}'.format(valid_mtype_db_file))
+
+    return mtype_dict
+
+
+def _get_valid_mtype_files_xml(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
+    """Gets valid morphologies files given ".xml" file.
+
+    Args:
+        valid_mtype_db_file: .xml file of mappings between morphology name and mtype
+
+    Returns:
+        dictionary of files per mtype
+    """
+    valid_dir = valid_mtype_db_file.parent
+    root = etree.parse(str(valid_mtype_db_file)).getroot()
     files_dict = defaultdict(list)
     for morphology in root.iterfind('.//morphology'):
         name = morphology.findtext('name')
-        if not name:
-            L.warning('Empty morphology name in %s', db_file)
         mtype = morphology.findtext('mtype')
-        if not mtype:
-            L.warning('Empty morphology mtype in %s', db_file)
+        if not name or not mtype:
+            warnings.warn('Empty morphology/mtype in {}'.format(valid_mtype_db_file))
+        file = valid_dir.joinpath(name + '.h5')
+        if file.exists() and file not in files_dict[mtype]:
+            files_dict[mtype].append(file)
+    return dict(files_dict)
+
+
+def _get_valid_mtype_files_dat(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
+    """Gets valid morphologies files given ".dat" file.
+
+    Args:
+        valid_mtype_db_file: .dat file of mappings between morphology name and mtype
+
+    Returns:
+        dictionary of files per mtype
+    """
+
+    valid_dir = valid_mtype_db_file.parent
+    files_dict = defaultdict(list)
+    columns = ['morphology', 'layer', 'mtype']
+    df = pd.read_csv(
+        valid_mtype_db_file, sep=r'\s+', names=columns, usecols=range(len(columns)),
+        na_filter=False)
+    for r in df.itertuples():
+        name = r.morphology
+        mtype = r.mtype
+        if not name or not mtype:
+            warnings.warn(
+                'Empty morphology/mtype on {} row of {}'.format(r.Index, valid_mtype_db_file))
+            continue
         file = valid_dir.joinpath(name + '.h5')
         if file.exists() and file not in files_dict[mtype]:
             files_dict[mtype].append(file)
@@ -334,11 +379,12 @@ def get_continuous_scores(continuous_distr: pd.DataFrame, continuous_stats: Stat
     return _reorder_scores((continuous_ks - continuous_stats.median) / continuous_stats.iqr)
 
 
-def validate(valid_dir: Path, test_dir: Path, ci: float = 95) -> pd.DataFrame:
+def validate(valid_mtype_db_file: Path, test_dir: Path, ci: float = 95) -> pd.DataFrame:
     """Validates directory of test morphologies against directory of valid morphologies.
 
     Args:
-        valid_dir: directory of valid morphologies files
+        valid_mtype_db_file: file that contains mapping of valid morphology names to their mtype.
+        Valid morphology files must be located in the same directory as this file.
         test_dir: directory of test morphologies files
         ci: confidence interval range in percents
 
@@ -346,7 +392,7 @@ def validate(valid_dir: Path, test_dir: Path, ci: float = 95) -> pd.DataFrame:
         Dataframe of features scores for each test file. Each score is:
         (feature value - feature median) / (feature interquartile range for ci).
     """
-    valid_files_per_mtype = get_valid_files_per_mtype(valid_dir)
+    valid_files_per_mtype = get_valid_mtype_files(valid_mtype_db_file)
     valid_discrete_features, valid_continuous_features = collect_features(valid_files_per_mtype)
     valid_discrete_distr = get_discrete_distr(valid_discrete_features)
     valid_discrete_stats = Stats(valid_discrete_distr, ci)
