@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from lxml import etree
 from neurom import NeuriteType
-from neurom.fst import FstNeuron
 from scipy import stats
 
 pd.options.display.width = 0
@@ -40,7 +39,7 @@ CONTINUOUS_FEATURES = [
 ]
 
 
-def _get_soma_feature(feature: str, neuron: FstNeuron, neurite: NeuriteType) -> np.array:
+def _get_soma_feature(feature: str, neuron, neurite: NeuriteType) -> np.array:
     """Gets soma area
 
     Args:
@@ -86,7 +85,7 @@ class Stats:
 ContinuousDistr = namedtuple('ContinuousDistr', 'distr ks_distr')
 
 
-def _get_neuron_features(neuron: FstNeuron, feature_names: List[str]) -> pd.DataFrame:
+def _get_neuron_features(neuron, feature_names: List[str]) -> pd.DataFrame:
     """Get features of neuron as a dataframe.
 
     Args:
