@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
 import imp
-import sys
-
 from setuptools import setup, find_packages
-
-if sys.version_info < (3, 6):
-    sys.exit("Sorry, Python < 3.6 is not supported")
 
 VERSION = imp.load_source("", "morph_validator/version.py").__version__
 
@@ -22,23 +17,20 @@ setup(
         "Source": "ssh://bbpcode.epfl.ch/nse/morph-validator",
     },
     license="BBP-internal-confidential",
+    python_requires='>=3.6',
     install_requires=[
-        'pandas',
-        'numpy',
-        'scipy',
+        'pandas>=0.25',
+        'numpy>=1.14',
+        'scipy>=1.3',
+        'lxml>=4.3.4',
         'neurom>=1.4.15',
-        'lxml',
+        'bluepy>=0.14',
     ],
     packages=find_packages(),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Education',
-        'Intended Audience :: Science/Research',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
 )

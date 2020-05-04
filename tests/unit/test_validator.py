@@ -1,6 +1,4 @@
-"""Sample nosetest file."""
-from pathlib import Path
-
+"""Test `validator` module"""
 import neurom as nm
 import numpy as np
 import pandas as pd
@@ -9,11 +7,12 @@ from neurom import NeuriteType
 
 from morph_validator import validator
 
+from tests.utils import TEST_DATA_DIR
+
 
 @pytest.fixture
 def morphologies_path():
-    this_path = Path(__file__).resolve()
-    return this_path.parent.parent.joinpath('data', 'morphologies')
+    return TEST_DATA_DIR / 'morphologies'
 
 
 def test_get_soma_feature(morphologies_path):
@@ -254,8 +253,8 @@ def test_get_continuous_scores():
         index=distr_index), 95)
     scores = validator.get_continuous_scores(distr, stats, features)
     assert np.allclose(scores,
-        [[-.35088, 0., 0., 0., -.52632, 0.],
-         [-.70175, 0., 1.05263, 0., -.84211, 1.05263]])
+                       [[-.35088, 0., 0., 0., -.52632, 0.],
+                        [-.70175, 0., 1.05263, 0., -.84211, 1.05263]])
 
 
 def test_failed_scores():
