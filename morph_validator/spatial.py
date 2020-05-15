@@ -57,8 +57,8 @@ def count_points_distribution(
         mtype_random_state (int): seed for selecting random morphologies from the circuit
 
     Returns:
-        Counter: a dictionary counter where keys are (mtype, soma_region, neurite, region) and
-        values are counts of points within the volume designated by the key.
+        pandas.DataFrame: a dataframe indexed by (mtype, soma_region, neurite, region) with a
+        single column 'count' that shows number of points within the volume designated by the index.
         (mtype, soma_region, neurite, region) designates the volume. `mtype` - morphology type,
         `soma_region` region where morphology soma is located, `neurite` - neurite of morphology
         that contains points, `region` - where points are located within the atlas. -1 means that
@@ -85,5 +85,5 @@ def count_points_distribution(
                 for region, count in Counter(regions).items():
                     point_counter[(mtype, example.region, neurite, region)] += count
                 point_counter[(mtype, example.region, neurite, -1)] += out_bounds_count
-    return pd.DataFrame(point_counter.values(), index=pd.MultiIndex.from_tuples(
-        point_counter.keys(), names=['mtype', 'soma_region', 'neurite', 'region']))
+    return pd.DataFrame(point_counter.values(), columns=['count'], index=pd.MultiIndex.from_tuples(
+        point_counter.keys(), names=['mtype', 'soma_region', 'neurite', 'region'])).sort_index()
