@@ -7,7 +7,7 @@ VERSION = imp.load_source("", "morph_validator/version.py").__version__
 
 setup(
     name="morph-validator",
-    author="BlueBrain NSE",
+    author="bbp-ou-nse",
     author_email="bbp-ou-nse@groupes.epfl.ch",
     version=VERSION,
     description="tool for validating morphologies against existing morphologies of the same type",
