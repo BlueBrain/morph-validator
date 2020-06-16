@@ -1,6 +1,10 @@
 Morph Validator
 ===============
-Project that allows to validate morphologies.
+This project is a collection of various modules for morphology validation.
+
+- ``features`` module allows to extract morphology features, analyze, and validate them .
+- ``spatial`` module validates morphologies spatially in a given volume of space (voxel data).
+
 
 Installation
 ------------
@@ -12,23 +16,7 @@ In a fresh virtualenv:
 
 Usage
 -----
-**Python**
-
-.. code:: python
-
-    scores = validate(
-        Path('../tests/data/morphologies/valid/mini'),
-        Path('../tests/data/morphologies/test'))
-    for file_failed_features in failed_scores(scores, 1.):
-        print(file_failed_features)
-        print('--------------------------------------')
-
-Also see :file:`examples/intro.ipynb` for short introduction on some usecases.
-
-Important
----------
-Current implementation has been chosen among other alternatives as the most short and neat. To see
-what other alternatives were, please look at the directory ``validator_alternatives`` in the commit
-**@a98beb18**, Change-Id: **I2af778cb9c8d97a8f7fa4f26769f21a5268f5511**.
+For usage of ``features`` module see ``examples/features.ipynb``. For usage of ``spatial`` module
+see ``examples/spatial.py``.
 
 

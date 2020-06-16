@@ -1,9 +1,12 @@
+"""Example of spatial morphology validation."""
 import sys
 from collections import Counter
 import numpy as np
 import pandas as pd
 import bluepy.v2 as bp
-import matplotlib; matplotlib.use("Agg")
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from morph_validator.spatial import count_cells_points_distribution
 
@@ -18,7 +21,7 @@ def relative_layer_depth_volume(
 
     Arguments:
         atlas: atlas for which to generate the volume
-        layer_labels: dict of {<layer_index>: <layer_label>}
+        layers: dict of {<layer_index>: <layer_label>}
 
     Returns:
         VoxelData containing volumetric data of floats between 1.0
@@ -40,6 +43,7 @@ def relative_layer_depth_volume(
         output[in_layer] = index + 1 + proportion[in_layer]
 
     return y.with_data(output)
+
 
 def layer_depth_bins(num_bins_per_layer):
     """
@@ -64,8 +68,10 @@ def relative_depth_volume(atlas, top_layer='1', bottom_layer='6'):
     thickness = top - bottom
     return y.with_data((top - y.raw) / thickness)
 
+
 def sort_counter(counter):
     return pd.DataFrame(counter.values(), index=counter.keys()).sort_index()
+
 
 if __name__ == "__main__":
     circuit = bp.Circuit(sys.argv[1])
@@ -78,7 +84,7 @@ if __name__ == "__main__":
         layer_labels = [str(i) for i in layer_indices]
         layer_nbins = [8, 7, 14, 10, 20, 25]
     print("plotting a cell's overall relative layer depth neurite distribution")
-    num_bins_per_layer= dict(zip(layer_indices, layer_nbins))
+    num_bins_per_layer = dict(zip(layer_indices, layer_nbins))
     layer_index_labels = dict(zip(layer_indices, layer_labels))
     neurite_counts = count_cells_points_distribution(
         circuit, [1],

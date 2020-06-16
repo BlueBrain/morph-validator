@@ -9,7 +9,7 @@ from pandas import testing
 
 from morph_validator.spatial import\
     _sample_morph_points, count_circuit_points_distribution,\
-    _sample_morph_voxel_valyes, _count_values_in_bins,\
+    _sample_morph_voxel_values, _count_values_in_bins,\
     count_cells_points_distribution
 from voxcell import VoxelData
 from bluepy.v2 import Circuit
@@ -36,13 +36,13 @@ def test_sample_morph_points():
     assert np.allclose(expected_axon, sampled_points[nm.NeuriteType.axon])
 
 
-def test_sample_morph_voxel_valyes():
+def test_sample_morph_voxel_values():
     voxeldata = VoxelData(
         np.array([[[0], [1]], [[2], [3]]]),
         (25, 25, 25))
     morph_path = SPATIAL_DATA_DIR / 'sample_morph_points.asc'
     morph = nm.load_neuron(morph_path)
-    single_cell_values = _sample_morph_voxel_valyes(
+    single_cell_values = _sample_morph_voxel_values(
         morph, 10, voxeldata, out_of_bounds_value=-1)
     np.testing.assert_array_equal(
         single_cell_values[nm.NeuriteType.axon], np.array([-1]))

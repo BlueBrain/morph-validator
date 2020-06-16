@@ -45,7 +45,7 @@ def _sample_morph_points(morph, sample_distance):
     return {neurite: np.vstack(points) for neurite, points in morph_points.items()}
 
 
-def _sample_morph_voxel_valyes(
+def _sample_morph_voxel_values(
         morphology, sample_distance, voxeldata, out_of_bounds_value):
     """
     for a specific morphology, sample the values of the neurites in voxeldata
@@ -118,7 +118,7 @@ def count_cells_points_distribution(
     counters = {}
     for gid in cell_ids:
         morph = circuit.morph.get(gid, transform=True)
-        cell_values = _sample_morph_voxel_valyes(
+        cell_values = _sample_morph_voxel_values(
             morph, sample_distance, voxeldata, out_of_bounds_value)
         for neurite_type, values in cell_values.items():
             neurite_count = _count_values_in_bins(values, bin_edges)

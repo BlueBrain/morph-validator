@@ -4,5 +4,6 @@ API Documentation
 .. autosummary::
     :toctree: submodules
 
-    morph_validator.validator
+    morph_validator.features
+    morph_validator.spatial
 

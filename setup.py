@@ -5,11 +5,16 @@ from setuptools import setup, find_packages
 
 VERSION = imp.load_source("", "morph_validator/version.py").__version__
 
+with open('README.rst', encoding='utf-8') as f:
+    README = f.read()
+
 setup(
     name="morph-validator",
     author="bbp-ou-nse",
     author_email="bbp-ou-nse@groupes.epfl.ch",
     version=VERSION,
+    long_description=README,
+    long_description_content_type="text/x-rst",
     description="tool for validating morphologies against existing morphologies of the same type",
     url="https://bbpteam.epfl.ch/documentation/projects/morph-validator",
     project_urls={

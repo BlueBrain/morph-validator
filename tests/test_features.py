@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from neurom import NeuriteType
 
-from morph_validator import validator
+from morph_validator import features
 
 from tests.utils import TEST_DATA_DIR
 
@@ -17,8 +17,8 @@ def morphologies_path():
 
 def test_get_soma_feature(morphologies_path):
     neuron = nm.load_neuron(morphologies_path.joinpath('test', 'Unknown', 'ca3b-N2.CNG.swc'))
-    for neurite in validator.NeuriteType:
-        area = validator._get_soma_feature('soma_surface_areas', neuron, neurite)
+    for neurite in features.NeuriteType:
+        area = features._get_soma_feature('soma_surface_areas', neuron, neurite)
         if neurite == NeuriteType.soma:
             assert np.allclose(area, np.array([370.96746105]), 1e-10, 1e-10)
         else:
@@ -37,7 +37,7 @@ def _assert_valid_file_dict(valid_files_dict, expected_filenames_dict, valid_dir
 
 def test_get_valid_files_per_mtype_xml(morphologies_path):
     valid_mtype_db_file = morphologies_path.joinpath('valid', 'mini', 'neuronDB.xml')
-    valid_files_dict = validator.get_valid_mtype_files(valid_mtype_db_file)
+    valid_files_dict = features.get_valid_mtype_files(valid_mtype_db_file)
 
     expected_filenames_dict = {
         'L23_BTC': [
@@ -53,7 +53,7 @@ def test_get_valid_files_per_mtype_xml(morphologies_path):
 
 def test_get_valid_files_per_mtype_dat(morphologies_path):
     valid_mtype_db_file = morphologies_path.joinpath('valid', 'mini', 'neuronDB.dat')
-    valid_files_dict = validator.get_valid_mtype_files(valid_mtype_db_file)
+    valid_files_dict = features.get_valid_mtype_files(valid_mtype_db_file)
 
     expected_filenames_dict = {
         'L4_MC': ['C040426', 'C040601', 'C180298B-I3', 'C290500C-I4'],
@@ -66,7 +66,7 @@ def test_get_valid_files_per_mtype_dat(morphologies_path):
 
 def test_get_test_files_per_mtype(morphologies_path):
     test_dir = morphologies_path.joinpath('test')
-    test_files_dict = validator.get_test_files_per_mtype(test_dir)
+    test_files_dict = features.get_test_files_per_mtype(test_dir)
 
     expected_filenames_dict = {
         'L23_BTC': ['C210401C'],
@@ -90,9 +90,9 @@ def test_collect_features(morphologies_path):
     files_per_mtype = {mtype: [valid_dir.joinpath(filename + '.h5') for filename in filenames]
                        for mtype, filenames in filenames_per_mtype.items()}
 
-    discrete_features, continuous_features = validator.collect_features(files_per_mtype)
-    assert set(discrete_features.columns) - set(validator.DISCRETE_FEATURES) == set()
-    assert set(continuous_features.columns) - set(validator.CONTINUOUS_FEATURES) == set()
+    discrete_features, continuous_features = features.collect_features(files_per_mtype)
+    assert set(discrete_features.columns) - set(features.DISCRETE_FEATURES) == set()
+    assert set(continuous_features.columns) - set(features.CONTINUOUS_FEATURES) == set()
     expected_index = {(mtype, filename, neurite.name)
                       for mtype, filenames in filenames_per_mtype.items()
                       for filename in filenames
@@ -106,14 +106,14 @@ def test_collect_features(morphologies_path):
 
 
 def test_ks_2samp():
-    assert validator._ks_2samp([1], [1, 2]) == (0.5, 1, 1)
-    assert validator._ks_2samp([], [1, 2]) == (np.nan, np.nan, np.nan)
+    assert features._ks_2samp([1], [1, 2]) == (0.5, 1, 1)
+    assert features._ks_2samp([], [1, 2]) == (np.nan, np.nan, np.nan)
 
 
 def test_get_ks_among_features():
     index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2', 'filename3'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
+        names=features.FEATURES_INDEX)
     columns = ['a']
     data = [
         [[1, 1]],
@@ -124,8 +124,8 @@ def test_get_ks_among_features():
         [[2, 2, 2]]]
     features_df = pd.DataFrame(data, columns=columns, index=index)
 
-    ks_df = validator._get_ks_among_features(features_df)
-    expected_columns = pd.MultiIndex.from_product([columns, validator.KS_INDEX])
+    ks_df = features._get_ks_among_features(features_df)
+    expected_columns = pd.MultiIndex.from_product([columns, features.KS_INDEX])
     expected_ks_values = [
         [0.25, 1, 2],
         [1, 0.33333333, 1],
@@ -141,7 +141,7 @@ def test_get_ks_features_to_distr():
     columns = ['feature1']
     features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
+        names=features.FEATURES_INDEX)
     features_data = [
         [[1, 1]],
         [[2]],
@@ -152,9 +152,9 @@ def test_get_ks_features_to_distr():
         [['type1', 'type2'], ['neurite1']],
         names=['mtype', 'neurite'])
     distr_df = pd.DataFrame([[[1, 1, 1]], [[2, 2, 2]]], columns=columns, index=distr_index)
-    ks_df = validator._get_ks_features_to_distr(features_df, distr_df)
+    ks_df = features._get_ks_features_to_distr(features_df, distr_df)
 
-    expected_columns = pd.MultiIndex.from_product([columns, validator.KS_INDEX])
+    expected_columns = pd.MultiIndex.from_product([columns, features.KS_INDEX])
     expected_ks_values = [
         [0., 1., 2],
         [1., 0.5, 1],
@@ -166,16 +166,16 @@ def test_get_ks_features_to_distr():
 
 def test_get_discrete_distr():
     columns = ['feature1']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
+        names=features.FEATURES_INDEX)
     data = [
         [1],
         [2],
         [1],
         [2]]
-    features = pd.DataFrame(data, columns=columns, index=features_index)
-    distr = validator.get_discrete_distr(features)
+    morph_features = pd.DataFrame(data, columns=columns, index=morph_features_index)
+    distr = features.get_discrete_distr(morph_features)
 
     expected_index = pd.MultiIndex.from_product([['type1', 'type2'], ['neurite1']])
     assert expected_index.equal_levels(distr.index)
@@ -188,16 +188,16 @@ def test_get_discrete_distr():
 
 def test_get_continuous_distr():
     columns = ['feature1']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
+        names=features.FEATURES_INDEX)
     data = [
         [[1, 1]],
         [[2]],
         [[1]],
         [[2, 2]]]
-    features = pd.DataFrame(data, columns=columns, index=features_index)
-    distr = validator.get_continuous_distr(features)
+    morph_features = pd.DataFrame(data, columns=columns, index=morph_features_index)
+    distr = features.get_continuous_distr(morph_features)
 
     expected_index = pd.MultiIndex.from_product([['type1', 'type2'], ['neurite1']])
     assert expected_index.equal_levels(distr.distr.index)
@@ -211,47 +211,47 @@ def test_get_continuous_distr():
 
 def test_stats():
     columns = ['feature1']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1', 'type2'], ['neurite1']],
         names=['mtype', 'neurite'])
     data = [[[1, 2, 3, 4, 5]], [[5, 6, 7, 8, 9]]]
-    distr = pd.DataFrame(data, columns=columns, index=features_index)
-    stats = validator.Stats(distr, 50)
+    distr = pd.DataFrame(data, columns=columns, index=morph_features_index)
+    stats = features.Stats(distr, 50)
     assert np.allclose(stats.median.to_numpy().flatten(), [3., 7.])
     assert np.allclose(stats.iqr.to_numpy().flatten(), [2., 2.])
 
 
 def test_get_discrete_scores():
     columns = ['feature1', 'feature2']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
-    features = pd.DataFrame(
+        names=features.FEATURES_INDEX)
+    morph_features = pd.DataFrame(
         [[1, 3],
-         [2, 4]], columns=columns, index=features_index)
-    distr_index = features_index.droplevel('filename').drop_duplicates()
+         [2, 4]], columns=columns, index=morph_features_index)
+    distr_index = morph_features_index.droplevel('filename').drop_duplicates()
     distr = pd.DataFrame([[[1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]], columns=columns, index=distr_index)
-    stats = validator.Stats(distr, 50)
-    scores = validator.get_discrete_scores(stats, features)
+    stats = features.Stats(distr, 50)
+    scores = features.get_discrete_scores(stats, morph_features)
     assert np.allclose(scores, [[-1., 0.],
                                 [-.5, .5]])
 
 
 def test_get_continuous_scores():
     columns = ['feature3', 'feature4']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
-    features = pd.DataFrame(
+        names=features.FEATURES_INDEX)
+    morph_features = pd.DataFrame(
         [[[1], [1]],
-         [[2, 2], [2, 2]]], columns=columns, index=features_index)
-    distr_index = features_index.droplevel('filename').drop_duplicates()
+         [[2, 2], [2, 2]]], columns=columns, index=morph_features_index)
+    distr_index = morph_features_index.droplevel('filename').drop_duplicates()
     distr = pd.DataFrame([[[1, 2, 3], [3, 4, 5]]], columns=columns, index=distr_index)
-    stats = validator.Stats(pd.DataFrame(
+    stats = features.Stats(pd.DataFrame(
         [[[1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1], [1, 2, 1]]],
-        columns=pd.MultiIndex.from_product([columns, validator.KS_INDEX]),
+        columns=pd.MultiIndex.from_product([columns, features.KS_INDEX]),
         index=distr_index), 95)
-    scores = validator.get_continuous_scores(distr, stats, features)
+    scores = features.get_continuous_scores(distr, stats, morph_features)
     assert np.allclose(scores,
                        [[-.35088, 0., 0., 0., -.52632, 0.],
                         [-.70175, 0., 1.05263, 0., -.84211, 1.05263]])
@@ -260,20 +260,21 @@ def test_get_continuous_scores():
 def test_failed_scores():
     discrete_columns = ['feature1', 'feature2']
     continuous_columns = ['feature3', 'feature4']
-    features_index = pd.MultiIndex.from_product(
+    morph_features_index = pd.MultiIndex.from_product(
         [['type1'], ['filename1', 'filename2'], ['neurite1']],
-        names=validator.FEATURES_INDEX)
+        names=features.FEATURES_INDEX)
     continuous_data = [
         [0.5, 2.],
         [-.34, .16]]
     discrete_data = [
         [-1.96, 0.3],
         [.5, .6]]
-    discrete_scores = pd.DataFrame(discrete_data, columns=discrete_columns, index=features_index)
+    discrete_scores = pd.DataFrame(
+        discrete_data, columns=discrete_columns, index=morph_features_index)
     continuous_scores = pd.DataFrame(
-        continuous_data, columns=continuous_columns, index=features_index)
+        continuous_data, columns=continuous_columns, index=morph_features_index)
     scores = pd.concat([discrete_scores, continuous_scores], axis=1, sort=True)
-    failed_scores = validator.failed_scores(scores, 1.95)
+    failed_scores = features.failed_scores(scores, 1.95)
     assert len(failed_scores) == 2
     assert np.array_equal(failed_scores[0].columns, ['feature1', 'feature4'])
     assert np.allclose(failed_scores[0], [-1.96, 2.0])
