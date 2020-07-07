@@ -25,6 +25,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'pandas>=0.25',
+        'joblib>=0.14',
         'numpy>=1.14',
         'scipy>=1.3',
         'lxml>=4.3.4',

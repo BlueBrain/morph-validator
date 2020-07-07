@@ -8,7 +8,10 @@ from collections import defaultdict, namedtuple
 from functools import partial
 from pathlib import Path
 from typing import Dict, List, Tuple
+import logging
+from tqdm import tqdm
 
+from joblib import Parallel, delayed
 import neurom as nm
 import numpy as np
 import pandas as pd
@@ -16,6 +19,7 @@ from lxml import etree
 from neurom import NeuriteType
 from scipy import stats
 
+L = logging.getLogger(__name__)
 pd.options.display.width = 0
 MORPH_FILETYPES = ['.h5', '.swc', '.asc']
 KS_INDEX = ['distance', 'p', 'sample_size']
@@ -200,6 +204,15 @@ def get_test_files_per_mtype(test_dir: Path) -> Dict[str, List[Path]]:
     return dict(files_dict)
 
 
+def _collect_features(file):
+    """Inner function to collect_features in parallel."""
+    neuron = nm.load_neuron(str(file))
+    name = neuron.name
+    discrete = _get_neuron_features(neuron, DISCRETE_FEATURES)
+    continuous = _get_neuron_features(neuron, CONTINUOUS_FEATURES)
+    return name, discrete, continuous
+
+
 def collect_features(files_per_mtype: Dict[str, List[Path]]) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Collects features of all files. Returns them as two dataframes. One for discrete,
     another for continuous features.
@@ -213,11 +226,12 @@ def collect_features(files_per_mtype: Dict[str, List[Path]]) -> Tuple[pd.DataFra
     """
     index, discrete, continuous = [], [], []
     for mtype, files in files_per_mtype.items():
-        for file in files:
-            neuron = nm.load_neuron(str(file))
-            index.append((mtype, neuron.name))
-            discrete.append(_get_neuron_features(neuron, DISCRETE_FEATURES))
-            continuous.append(_get_neuron_features(neuron, CONTINUOUS_FEATURES))
+        L.info('Extracting features for %s', mtype)
+        features_per_file = Parallel(-1)(delayed(_collect_features)(file) for file in tqdm(files))
+        for name_, discrete_, continuous_ in features_per_file:
+            index.append((mtype, name_))
+            discrete.append(discrete_)
+            continuous.append(continuous_)
     discrete = pd.concat(discrete, keys=index, names=FEATURES_INDEX).applymap(np.sum)
     continuous = pd.concat(continuous, keys=index, names=FEATURES_INDEX)
     return discrete, continuous
