@@ -1,0 +1,56 @@
+<neurondb><listing>
+
+    <morphology>
+      <name>Fluo2_right</name>
+      <mtype>L5_UPC</mtype>
+      <msubtype />
+      <layer>5</layer>
+      <repair>
+        <axon_repair>true</axon_repair>
+        <basal_dendrite_repair>true</basal_dendrite_repair>
+        <tuft_dendrite_repair>true</tuft_dendrite_repair>
+        <oblique_dendrite_repair>true</oblique_dendrite_repair>
+        <dendrite_repair>true</dendrite_repair>
+        <unravel>true</unravel>
+        <use_for_stats>true</use_for_stats>
+        <use_axon>true</use_axon>
+        <axon_sources>
+          <axoninput>Fluo15_left</axoninput>
+          <axoninput>Fluo15_right</axoninput>
+          <axoninput>Fluo2_right</axoninput>
+          <axoninput>Fluo6_right</axoninput>
+          <axoninput>GTS070208-P3</axoninput>
+          <axoninput>og061123b1-3_idA</axoninput>
+          <axoninput>rp080520-1C_P4</axoninput>
+        </axon_sources>
+      </repair>
+    </morphology>
+    <morphology>
+      <name>C270106E</name>
+      <mtype>L1_NGC-DA</mtype>
+      <msubtype />
+      <layer>1</layer>
+      <repair>
+        <axon_repair>true</axon_repair>
+        <dendrite_repair>false</dendrite_repair>
+        <unravel>true</unravel>
+        <use_for_stats>true</use_for_stats>
+        <use_axon>true</use_axon>
+        <axon_sources>
+          <axoninput>C060106B</axoninput>
+          <axoninput>C270106E</axoninput>
+          <axoninput>sm081009a1-7_idE</axoninput>
+          <axoninput>sm080722b1_idA</axoninput>
+          <axoninput>sm080905a1-3_idC</axoninput>
+          <axoninput>sm080905a1-3_idA</axoninput>
+          <axoninput>sm080619a1-7_idF</axoninput>
+          <axoninput>sm080723a1-4_idD</axoninput>
+          <axoninput>sm080903a1-3_idA</axoninput>
+          <axoninput>sm081010a1-6_idC</axoninput>
+          <axoninput>sm081010a1-6_idE</axoninput>
+          <axoninput>sm081017b1-6_idF</axoninput>
+        </axon_sources>
+      </repair>
+    </morphology>
+
+  </listing><overview><count>2</count></overview></neurondb>

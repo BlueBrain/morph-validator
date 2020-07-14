@@ -29,7 +29,7 @@ setup(
         'numpy>=1.14',
         'scipy>=1.3',
         'lxml>=4.3.4',
-        'morph-tool>=0.2.8',
+        'morph-tool>=0.2.9',
         'neurom>=1.5.1',
         'bluepy>=0.14',
         'seaborn>=0.10.1',

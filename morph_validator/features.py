@@ -3,19 +3,18 @@ API for collecting neurom features from morphologies.
 """
 
 import itertools
+import logging
 from functools import partial
 from pathlib import Path
 from typing import Dict, List, Tuple
-import logging
-from tqdm import tqdm
 
-from joblib import Parallel, delayed
 import neurom as nm
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
+from joblib import Parallel, delayed
 from neurom import NeuriteType
-
+from pandas import DataFrame
+from tqdm import tqdm
 
 L = logging.getLogger(__name__)
 FEATURES_INDEX = ['mtype', 'filename', 'neurite']

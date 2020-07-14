@@ -5,8 +5,9 @@ from typing import Dict, List
 from morph_tool.utils import neurondb_dataframe, iter_morphology_files
 
 
-def get_mtype_files_db(
-        neurondb_file: Path, verify_path: bool = True, ext: str = '.h5') -> Dict[str, List[Path]]:
+def get_mtype_files_db(neurondb_file: Path,
+                       verify_path: bool = True,
+                       ext: str = '.h5') -> Dict[str, List[Path]]:
     """Gets morphologies files defined by a neurondb file.
 
     Args:

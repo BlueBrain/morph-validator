@@ -11,6 +11,7 @@ Version 0.2.0
   `utils.get_valid_mtype_files` to `utils.get_mtype_files_db`
 - Add `plotting` module for various plots to validate morphologies visually
 - Add `plot_violin_comparison` to `plotting`
+- Add `repair` module to validate morphology repair
 
 Version 0.1.1
 -------------
