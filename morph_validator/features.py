@@ -168,9 +168,7 @@ def _get_valid_mtype_files_dat(valid_mtype_db_file: Path) -> Dict[str, List[Path
     valid_dir = valid_mtype_db_file.parent
     files_dict = defaultdict(list)
     columns = ['morphology', 'layer', 'mtype']
-    df = pd.read_csv(
-        valid_mtype_db_file, sep=r'\s+', names=columns, usecols=range(len(columns)),
-        na_filter=False)
+    df = pd.read_csv(valid_mtype_db_file, sep=r'\s+', names=columns, usecols=range(len(columns)))
     for r in df.itertuples():
         name = r.morphology
         mtype = r.mtype
