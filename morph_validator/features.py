@@ -3,7 +3,6 @@ API for single morphology validation.
 """
 
 import itertools
-import warnings
 from collections import defaultdict, namedtuple
 from functools import partial
 from pathlib import Path
@@ -15,9 +14,10 @@ from joblib import Parallel, delayed
 import neurom as nm
 import numpy as np
 import pandas as pd
-from lxml import etree
 from neurom import NeuriteType
 from scipy import stats
+
+from .utils import get_valid_mtype_files
 
 L = logging.getLogger(__name__)
 pd.options.display.width = 0
@@ -108,78 +108,6 @@ def _get_neuron_features(neuron, feature_names: List[str]) -> pd.DataFrame:
             val = nm.get(feature_name, neuron, neurite_type=neurite)
         df.loc[neurite.name, feature_name] = val.tolist()
     return df
-
-
-def get_valid_mtype_files(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
-    """Gets valid morphologies files.
-
-    Args:
-        valid_mtype_db_file: file of mappings between morphology name and mtype. Morphology files
-        must be located in the same directory as this file.
-
-    Returns:
-        dictionary of files per mtype
-    """
-    if valid_mtype_db_file.suffix == '.xml':
-        mtype_dict = _get_valid_mtype_files_xml(valid_mtype_db_file)
-    elif valid_mtype_db_file.suffix == '.dat':
-        mtype_dict = _get_valid_mtype_files_dat(valid_mtype_db_file)
-    else:
-        raise ValueError('{} must have an .xml or .dat extension'.format(valid_mtype_db_file.name))
-    if len(mtype_dict.keys()) == 0:
-        raise ValueError('No mtypes in {}'.format(valid_mtype_db_file))
-
-    return mtype_dict
-
-
-def _get_valid_mtype_files_xml(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
-    """Gets valid morphologies files given ".xml" file.
-
-    Args:
-        valid_mtype_db_file: .xml file of mappings between morphology name and mtype
-
-    Returns:
-        dictionary of files per mtype
-    """
-    valid_dir = valid_mtype_db_file.parent
-    root = etree.parse(str(valid_mtype_db_file)).getroot()
-    files_dict = defaultdict(list)
-    for morphology in root.iterfind('.//morphology'):
-        name = morphology.findtext('name')
-        mtype = morphology.findtext('mtype')
-        if not name or not mtype:
-            warnings.warn('Empty morphology/mtype in {}'.format(valid_mtype_db_file))
-        file = valid_dir.joinpath(name + '.h5')
-        if file.exists() and file not in files_dict[mtype]:
-            files_dict[mtype].append(file)
-    return dict(files_dict)
-
-
-def _get_valid_mtype_files_dat(valid_mtype_db_file: Path) -> Dict[str, List[Path]]:
-    """Gets valid morphologies files given ".dat" file.
-
-    Args:
-        valid_mtype_db_file: .dat file of mappings between morphology name and mtype
-
-    Returns:
-        dictionary of files per mtype
-    """
-
-    valid_dir = valid_mtype_db_file.parent
-    files_dict = defaultdict(list)
-    columns = ['morphology', 'layer', 'mtype']
-    df = pd.read_csv(valid_mtype_db_file, sep=r'\s+', names=columns, usecols=range(len(columns)))
-    for r in df.itertuples():
-        name = r.morphology
-        mtype = r.mtype
-        if not name or not mtype:
-            warnings.warn(
-                'Empty morphology/mtype on {} row of {}'.format(r.Index, valid_mtype_db_file))
-            continue
-        file = valid_dir.joinpath(name + '.h5')
-        if file.exists() and file not in files_dict[mtype]:
-            files_dict[mtype].append(file)
-    return dict(files_dict)
 
 
 def get_test_files_per_mtype(test_dir: Path) -> Dict[str, List[Path]]:

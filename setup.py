@@ -29,8 +29,12 @@ setup(
         'numpy>=1.14',
         'scipy>=1.3',
         'lxml>=4.3.4',
-        'neurom>=1.4.15',
+        'morph-tool>=0.2.8',
+        'neurom>=1.5.1',
         'bluepy>=0.14',
+        'seaborn>=0.10.1',
+        'tqdm>=4.46.0',
+        'matplotlib>=2.2.0',
     ],
     packages=find_packages(),
     classifiers=[

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Version 0.2.0
+-------------
+
+- Add `plotting` module for various plots to validate morphologies visually.
+- Add `plot_violin_comparison` to `plotting`.
+
 Version 0.1.1
 -------------
 

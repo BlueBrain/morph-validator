@@ -2,21 +2,15 @@
 import neurom as nm
 import numpy as np
 import pandas as pd
-import pytest
 from neurom import NeuriteType
 
 from morph_validator import features
 
-from tests.utils import TEST_DATA_DIR
+from tests.utils import MORPHOLOGIES_DIR
 
 
-@pytest.fixture
-def morphologies_path():
-    return TEST_DATA_DIR / 'morphologies'
-
-
-def test_get_soma_feature(morphologies_path):
-    neuron = nm.load_neuron(morphologies_path.joinpath('test', 'Unknown', 'ca3b-N2.CNG.swc'))
+def test_get_soma_feature():
+    neuron = nm.load_neuron(MORPHOLOGIES_DIR / 'test' / 'Unknown' / 'ca3b-N2.CNG.swc')
     for neurite in features.NeuriteType:
         area = features._get_soma_feature('soma_surface_areas', neuron, neurite)
         if neurite == NeuriteType.soma:
@@ -25,47 +19,8 @@ def test_get_soma_feature(morphologies_path):
             assert area.size == 0
 
 
-def _assert_valid_file_dict(valid_files_dict, expected_filenames_dict, valid_dir):
-    assert set(valid_files_dict.keys()) - (expected_filenames_dict.keys()) == set()
-    for mtype, file_list in valid_files_dict.items():
-        expected_filename_list = expected_filenames_dict[mtype]
-        assert len(file_list) == len(expected_filename_list)
-        for file in file_list:
-            assert file.parent == valid_dir
-            assert file.stem in expected_filename_list
-
-
-def test_get_valid_files_per_mtype_xml(morphologies_path):
-    valid_mtype_db_file = morphologies_path.joinpath('valid', 'mini', 'neuronDB.xml')
-    valid_files_dict = features.get_valid_mtype_files(valid_mtype_db_file)
-
-    expected_filenames_dict = {
-        'L23_BTC': [
-            'mtC020502A_idA', 'mtC031100A_idB', 'mtC061100A_idC', 'mtC121100B_idJ', 'mtC240300A_idB'
-        ],
-        'L5_MC': ['C040426', 'C040601', 'C050896A-I', 'C180298B-I3', 'C290500C-I4'],
-        'L5_TPC': [
-            'rat_20160906_E1_LH5_cell2', 'rat_20160914_E1_LH4_cell1', 'rat_20170523_E1_LH2_cell1',
-            'rat_P16_S1_RH3_20140129'],
-    }
-    _assert_valid_file_dict(valid_files_dict, expected_filenames_dict, valid_mtype_db_file.parent)
-
-
-def test_get_valid_files_per_mtype_dat(morphologies_path):
-    valid_mtype_db_file = morphologies_path.joinpath('valid', 'mini', 'neuronDB.dat')
-    valid_files_dict = features.get_valid_mtype_files(valid_mtype_db_file)
-
-    expected_filenames_dict = {
-        'L4_MC': ['C040426', 'C040601', 'C180298B-I3', 'C290500C-I4'],
-        'L5_MC': ['C040426', 'C040601', 'C050896A-I', 'C180298B-I3', 'C290500C-I4'],
-        'L6_MC': ['C040426', 'C040601', 'C180298B-I3', 'C290500C-I4'],
-        'L23_BTC': ['mtC031100A_idB'],
-    }
-    _assert_valid_file_dict(valid_files_dict, expected_filenames_dict, valid_mtype_db_file.parent)
-
-
-def test_get_test_files_per_mtype(morphologies_path):
-    test_dir = morphologies_path.joinpath('test')
+def test_get_test_files_per_mtype():
+    test_dir = MORPHOLOGIES_DIR / 'test'
     test_files_dict = features.get_test_files_per_mtype(test_dir)
 
     expected_filenames_dict = {
@@ -81,8 +36,8 @@ def test_get_test_files_per_mtype(morphologies_path):
             assert file.stem in expected_filename_list
 
 
-def test_collect_features(morphologies_path):
-    valid_dir = morphologies_path.joinpath('valid', 'mini')
+def test_collect_features():
+    valid_dir = MORPHOLOGIES_DIR / 'valid' / 'mini'
     filenames_per_mtype = {
         'L5_MC': ['C040426', 'C040601'],
         'L23_BTC': ['rat_20160906_E1_LH5_cell2'],
