@@ -1,5 +1,6 @@
 """test `plotting` module"""
 import tempfile
+from mock import Mock
 from collections import Counter
 from subprocess import call
 import numpy as np
@@ -8,9 +9,9 @@ import neurom as nm
 from pandas import testing
 
 from morph_validator.spatial import\
-    _sample_morph_points, count_circuit_points_distribution,\
-    _sample_morph_voxel_values, _count_values_in_bins,\
-    count_cells_points_distribution
+    iter_positions, count_circuit_points_distribution,\
+    sample_morph_voxel_values, _count_values_in_bins,\
+    count_cells_points_distribution, relative_depth_volume
 from voxcell import VoxelData
 from bluepy.v2 import Circuit
 from tests.utils import TEST_DATA_DIR
@@ -18,10 +19,9 @@ from tests.utils import TEST_DATA_DIR
 SPATIAL_DATA_DIR = TEST_DATA_DIR / 'spatial'
 
 
-def test_sample_morph_points():
-    morph_path = SPATIAL_DATA_DIR / 'sample_morph_points.asc'
+def test_iter_positions():
+    morph_path = SPATIAL_DATA_DIR / 'iter_positions.asc'
     morph = nm.load_neuron(morph_path)
-    sampled_points = _sample_morph_points(morph, 10)
     expected_basal = np.array([
         [0., 11., 0., ],
         [0., 21., 0., ],
@@ -31,9 +31,57 @@ def test_sample_morph_points():
         [0., 41., 0., ],
         [1.38485692, 30.30600158, 0., ],
         [11., 0., 0., ]])
-    assert np.allclose(expected_basal, sampled_points[nm.NeuriteType.basal_dendrite])
+    basal_filter = lambda s: s.type == nm.NeuriteType.basal_dendrite
+    assert np.allclose(
+        expected_basal,
+        np.array(list(
+            iter_positions(morph, 10, basal_filter))))
     expected_axon = np.array([[0., -11., 0., ]])
-    assert np.allclose(expected_axon, sampled_points[nm.NeuriteType.axon])
+    axon_filter = lambda s: s.type == nm.NeuriteType.axon
+    assert np.allclose(
+        expected_axon,
+        np.array(list(
+            iter_positions(morph, 10, axon_filter))))
+
+
+def test_iter_positions_no_skips_branch_points():
+    morph = nm.load_neuron(SPATIAL_DATA_DIR / 'simple.swc')
+    points = iter_positions(morph, 1, None)
+    exp_points = np.array([
+        [0, 1, 0],
+        [0, 2, 0],
+        [0, 3, 0],
+        [0, 4, 0],
+        [0, 5, 0],
+        [-1, 5, 0],
+        [-2, 5, 0],
+        [-3, 5, 0],
+        [-4, 5, 0],
+        [-5, 5, 0],
+        [1, 5, 0],
+        [2, 5, 0],
+        [3, 5, 0],
+        [4, 5, 0],
+        [5, 5, 0],
+        [6, 5, 0],
+        [0, -1, 0],
+        [0, -2, 0],
+        [0, -3, 0],
+        [0, -4, 0],
+        [1, -4, 0],
+        [2, -4, 0],
+        [3, -4, 0],
+        [4, -4, 0],
+        [5, -4, 0],
+        [6, -4, 0],
+        [-1, -4, 0],
+        [-2, -4, 0],
+        [-3, -4, 0],
+        [-4, -4, 0],
+        [-5, -4, 0]
+    ])
+
+    np.testing.assert_almost_equal(exp_points, np.array(list(points)))
 
 
 def test_sample_morph_voxel_values():
@@ -42,7 +90,7 @@ def test_sample_morph_voxel_values():
         (25, 25, 25))
     morph_path = SPATIAL_DATA_DIR / 'sample_morph_points.asc'
     morph = nm.load_neuron(morph_path)
-    single_cell_values = _sample_morph_voxel_values(
+    single_cell_values = sample_morph_voxel_values(
         morph, 10, voxeldata, out_of_bounds_value=-1)
     np.testing.assert_array_equal(
         single_cell_values[nm.NeuriteType.axon], np.array([-1]))
@@ -130,3 +178,68 @@ def test_count_circuit_points_distribution_other_voxeldata():
     expected_df.set_index(['mtype', 'soma_region', 'neurite', 'voxel_value'], inplace=True)
     print(points_df)
     testing.assert_frame_equal(expected_df, points_df)
+
+
+def test_relative_depth_volume():
+    atlas_region = np.array(
+        [[[0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0]]], dtype=np.bool)
+
+    atlas_phy = np.array(
+        [[[np.nan, np.nan, np.nan],
+          [np.nan, np.nan, np.nan],
+          [np.nan, np.nan, np.nan],
+          [6, 6, 6],
+          [5, 5, 5],
+          [4, 4, 4],
+          [3, 3, 3],
+          [2, 2, 2],
+          [1, 1, 1],
+          [np.nan, np.nan, np.nan],
+          [np.nan, np.nan, np.nan],
+          [np.nan, np.nan, np.nan]]])
+
+    atlas_ph1 = np.zeros(atlas_phy.shape + (2, ))
+    atlas_ph1[..., 1] = 6
+    atlas_ph1[atlas_region == 0] = np.nan
+
+    expected_atlas_reldepth = np.array(
+        [[[-3/6, -3/6, -3/6],
+          [-2/6, -2/6, -2/6],
+          [-1/6, -1/6, -1/6],
+          [0, 0, 0],
+          [1/6, 1/6, 1/6],
+          [2/6, 2/6, 2/6],
+          [3/6, 3/6, 3/6],
+          [4/6, 4/6, 4/6],
+          [5/6, 5/6, 5/6],
+          [7/6, 7/6, 7/6],
+          [8/6, 8/6, 8/6],
+          [9/6, 9/6, 9/6]]])
+
+    mockatlas = Mock()
+
+    def mockdata(thing):
+        return {
+            '[PH]y': VoxelData(atlas_phy, (1, 1, 1)),
+            '[PH]1': VoxelData(atlas_ph1, (1, 1, 1))}[
+                thing]
+
+    mockatlas.load_data = mockdata
+    mockatlas.get_region_mask = lambda acro:\
+        VoxelData(atlas_region, (1, 1, 1))
+
+    np.testing.assert_array_almost_equal(
+        relative_depth_volume(
+            mockatlas, top_layer=1, bottom_layer=1, in_region='blabla').raw,
+        expected_atlas_reldepth)
