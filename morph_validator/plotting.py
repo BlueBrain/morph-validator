@@ -13,7 +13,7 @@ import seaborn as sns
 
 from neurom.apps.morph_stats import extract_dataframe
 
-from morph_validator.utils import get_valid_mtype_files
+from morph_validator.utils import get_mtype_files_db
 from morph_validator.feature_configs import get_feature_configs
 
 matplotlib.use("Agg")
@@ -46,10 +46,10 @@ def _morphologies_to_features(neurondb: Path,
 
     Args:
         neurondb: path to neurondb
-        morphology_folder: a dict of labels, morphology folders
+        morphology_folders: a dict of labels, morphology folders
     """
     L.info('Extracting features.')
-    neurondb_mtypes = get_valid_mtype_files(neurondb, verify_path=False, ext=ext)
+    neurondb_mtypes = get_mtype_files_db(neurondb, verify_path=False, ext=ext)
     features = []
     for morphologies_label, morphologies_path in morphology_folders.items():
         morphologies_mtypes = {mtype: [Path(morphologies_path, file.name) for file in mtype_files]

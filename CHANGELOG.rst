@@ -4,13 +4,18 @@ Changelog
 Version 0.2.0
 -------------
 
-- Add `plotting` module for various plots to validate morphologies visually.
-- Add `plot_violin_comparison` to `plotting`.
+- Split `features` among `features`, `zscores` and `utils` modules
+- Rename
+  `features.collect_features` to `features.collect`
+  `utils.get_test_files_per_mtype` to `utils.get_mtype_files_dir`
+  `utils.get_valid_mtype_files` to `utils.get_mtype_files_db`
+- Add `plotting` module for various plots to validate morphologies visually
+- Add `plot_violin_comparison` to `plotting`
 
 Version 0.1.1
 -------------
 
-- Changed Z score validation to be parallel.
+- Changed Z score validation to be parallel
 
 Version 0.1.0
 -------------

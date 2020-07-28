@@ -2,8 +2,9 @@ Morph Validator
 ===============
 This project is a collection of various modules for morphology validation.
 
-- ``features`` module allows to extract morphology features, analyze, and validate them .
-- ``spatial`` module validates morphologies spatially in a given volume of space (voxel data).
+- `features` module allows to extract morphology features.
+- `zscores` module allows to validate the extracted features.
+- `spatial` module validates morphologies spatially in a given volume of space (voxel data).
 
 
 Installation
@@ -16,7 +17,7 @@ In a fresh virtualenv:
 
 Usage
 -----
-For usage of ``features`` module see ``examples/features.ipynb``. For usage of ``spatial`` module
-see ``examples/spatial.py``.
+For usage of `features` and `zscores` see `examples/zscores.ipynb`. For usage of `spatial` module
+see `examples/spatial.py`.
 
 
