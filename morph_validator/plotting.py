@@ -69,11 +69,15 @@ def _expand_lists(data):
                 new_row = data.loc[row_id].copy()
                 new_row['value'] = value
                 data_expanded = data_expanded.append(new_row)
+        else:
+            data_expanded = data_expanded.append(data.loc[row_id].copy())
     return data_expanded
 
 
 def _normalize(data):
     """Normalize data witht mean and std."""
+    if len(data) == 0:
+        return data
     data_tmp = data.set_index(['feature', 'neurite_type', 'mtype'])
     groups = data_tmp.groupby(['feature', 'neurite_type', 'mtype'])
     means = groups.mean().reset_index()
