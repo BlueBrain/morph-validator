@@ -22,9 +22,16 @@ CONFIG_TOTAL_LENGTH = {
 }
 
 
-def _create_pdfs(masses):
-    L.info('Create pdfs')
-    with PdfPages('masses.pdf') as pdf:
+def create_pdf(masses: pd.DataFrame,
+               output_pdf: Path):
+    '''Create pdfs containing the mass plots.
+
+    Args:
+        masses: the dataframe returned by the compare_masse function
+        output_pdf: the path to the output
+
+    '''
+    with PdfPages(output_pdf) as pdf:
         for neurite_type, df in masses.groupby('neurite_type'):
             fig = plt.figure()
             df.plot.bar(x='mtype', ax=plt.gca())
@@ -33,7 +40,7 @@ def _create_pdfs(masses):
             plt.close()
 
 
-def get_masses(df):
+def _get_masses(df):
     """Get the dendrite masses of cells."""
     mass_df = pd.DataFrame()
     for _, row in tqdm(df[['mtype', 'path']].iterrows()):
@@ -61,7 +68,7 @@ def compare_masses(data: List[Tuple[Path, Path]]):
     all_mtype = None
     for i, df in enumerate(starmap(neurondb_dataframe, data)):
         index = ['mtype', 'neurite_type']
-        masses = get_masses(df)
+        masses = _get_masses(df)
         by_mtype_neurite = masses.groupby(index).mean()
         by_neurite = masses.groupby('neurite_type').mean()
         suffix = str(i)
