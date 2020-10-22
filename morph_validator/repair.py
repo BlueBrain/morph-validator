@@ -2,7 +2,7 @@
 import logging
 from itertools import starmap
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -40,35 +40,40 @@ def create_pdf(masses: pd.DataFrame,
             plt.close()
 
 
-def _get_masses(df):
+def _get_masses(df, morph_stats_config):
     """Get the dendrite masses of cells."""
     mass_df = pd.DataFrame()
     for _, row in tqdm(df[['mtype', 'path']].iterrows()):
         mass_df_tmp = extract_dataframe(
-            nm.load_neurons(row.path), CONFIG_TOTAL_LENGTH
+            nm.load_neurons(row.path), morph_stats_config
         )
         mass_df_tmp['mtype'] = row.mtype
         mass_df = mass_df.append(mass_df_tmp)
     return mass_df
 
 
-def compare_masses(data: List[Tuple[Path, Path]]):
-    """Create plot to compare the mass of neurons.
+def compare_morphometrics(data: List[Tuple[Path, Path]],
+                          morph_stats_config: Optional[Dict] = None):
+    """Create plot to compare morphometrics of neurons.
 
     For axonal, basal and apical dendrites, and all dendrites,
     a pdf will be generated, with a page per mtype, comparing the masses
     between different morphology_paths.
 
     Args:
-        data (Path): list of 2-tuples (path to neurondb, path to morphology folder)
+        data: list of 2-tuples (path to neurondb, path to morphology folder)
+        morph_stats_config: a config of morphometrics in the NeuroM morph-stat format
+            See: https://neurom.readthedocs.io/en/latest/morph_stats.html
     """
 
     L.info('Get masses from morphologies')
     fat = None
     all_mtype = None
+    morph_stats_config = morph_stats_config or CONFIG_TOTAL_LENGTH
+
     for i, df in enumerate(starmap(neurondb_dataframe, data)):
         index = ['mtype', 'neurite_type']
-        masses = _get_masses(df)
+        masses = _get_masses(df, morph_stats_config)
         by_mtype_neurite = masses.groupby(index).mean()
         by_neurite = masses.groupby('neurite_type').mean()
         suffix = str(i)
