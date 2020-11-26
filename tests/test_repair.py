@@ -1,37 +1,24 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pandas as pd
-from pandas.testing import assert_frame_equal
-
+from morph_tool.morphdb import MorphDB
 from morph_validator import repair
-
-
-from neurom.apps.morph_stats import full_config
-
 
 DATA = Path(__file__).parent / 'data'
 
 
 def test_compare_morphometrics():
     release = DATA / 'repair'
-    df = repair.compare_morphometrics([(release / 'neuronDB.xml', release / '04_ZeroDiameterFix'),
-                                (release / 'neuronDB.xml', release / '06_RepairUnravel')])
-    assert_frame_equal(df, pd.read_csv(release / 'expected-compare-masses.csv'))
+    config = {'neurite': {'total_length': ['min', 'max', 'median', 'mean', 'std'],
+                          'total_length_per_neurite': ['min', 'max', 'median', 'mean', 'std']}}
+
+    db = MorphDB.from_neurondb(release / 'neuronDB.xml',
+                               morphology_folder=release / '04_ZeroDiameterFix')
+    db += MorphDB.from_neurondb(release / 'neuronDB.xml',
+                                morphology_folder=release / '06_RepairUnravel')
 
     with TemporaryDirectory() as folder:
         out = Path(folder, 'masses.pdf')
-        repair.create_pdf(df, out)
-        assert out.exists()
-
-
-def test_compare_morphometrics2():
-    release = DATA / 'repair'
-    df = repair.compare_morphometrics([(release / 'neuronDB.xml', release / '04_ZeroDiameterFix'),
-                                (release / 'neuronDB.xml', release / '06_RepairUnravel')],
-                               morph_stats_config=full_config())
-
-    with TemporaryDirectory() as folder:
-        out = Path(folder, 'masses.pdf')
-        repair.create_pdf(df, out)
+        repair.compare_morphometrics(db, morph_stats_config=config,
+                                     output_pdf=out)
         assert out.exists()

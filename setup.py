@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import imp
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 VERSION = imp.load_source("", "morph_validator/version.py").__version__
 
@@ -29,9 +30,9 @@ setup(
         'numpy>=1.14',
         'scipy>=1.3',
         'lxml>=4.3.4',
-        'morph-tool>=0.2.9',
-        'neurom>=1.5.1',
-        'bluepy>=0.14',
+        'morph-tool>=2.3.0',
+        'neurom>=1.7.0',
+        'bluepy>=2.0.0',
         'seaborn>=0.10.1',
         'tqdm>=4.46.0',
         'matplotlib>=2.2.0',

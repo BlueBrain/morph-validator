@@ -1,18 +1,13 @@
 """Validation tools for morphology repair."""
 import logging
-from itertools import starmap
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
-import neurom as nm
+import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
-from neurom.apps.morph_stats import extract_dataframe
-from tqdm import tqdm
-
-from morph_tool.utils import neurondb_dataframe
+from morph_tool.morphdb import MorphDB
 
 matplotlib.use('Agg')
 L = logging.getLogger(__name__)
@@ -40,20 +35,63 @@ def create_pdf(masses: pd.DataFrame,
             plt.close()
 
 
-def _get_masses(df, morph_stats_config):
-    """Get the dendrite masses of cells."""
-    mass_df = pd.DataFrame()
-    for _, row in tqdm(df[['mtype', 'path']].iterrows()):
-        mass_df_tmp = extract_dataframe(
-            nm.load_neurons(row.path), morph_stats_config
-        )
-        mass_df_tmp['mtype'] = row.mtype
-        mass_df = mass_df.append(mass_df_tmp)
-    return mass_df
+def pdf_all_metrics_by_metric(metrics: pd.DataFrame,  # pylint: disable=too-many-locals
+                              output_pdf: Path):
+    '''Create pdfs containing the mass plots.
+
+    Args:
+        masses: the dataframe returned by the compare_masse function
+        output_pdf: the path to the output
+
+    '''
+    idx = pd.IndexSlice
+    df = metrics.loc[:, idx[['neuron', 'all'], :]]
+
+    metrics = metrics.loc[:, idx[['all'], :]].columns.droplevel()
+    metrics = metrics[metrics.str.startswith('mean_')]
+    df.columns = df.columns.droplevel()
+
+    groups = df.groupby(['mtype', 'label'])
+    labels = df.label.unique()
+    mtypes = {mtype: i for i, mtype in enumerate(df.mtype.unique())}
+    with PdfPages(output_pdf) as pdf:
+        for metric in metrics:
+            fig = plt.figure()
+
+            x = {label: [] for label in labels}
+            y = {label: [] for label in labels}
+            yerr = {label: [] for label in labels}
+            fig.suptitle(f'metric: {metric[5:]}')
+
+            for (mtype, label), df in groups:
+                mean = df[metric].mean()
+                std = df[metric].std()
+                if np.isfinite(mean) and np.isfinite(std):
+                    y[label].append(mean)
+                    yerr[label].append(std)
+                    x[label].append(mtypes[mtype])
+
+            options = dict(
+                capsize=2,
+                fmt='o',
+                elinewidth=1,
+                markersize=2,
+            )
+
+            for offset, label in enumerate(labels):
+                plt.errorbar([item + 0.3 * offset for item in x[label]],
+                             y[label], yerr=yerr[label], label=label, **options)
+
+            plt.xticks(list(mtypes.values()), list(mtypes.keys()), rotation='vertical', fontsize=5)
+            plt.legend()
+            pdf.savefig(fig, bbox_inches='tight')
+            plt.close()
 
 
-def compare_morphometrics(data: List[Tuple[Path, Path]],
-                          morph_stats_config: Optional[Dict] = None):
+def compare_morphometrics(db: MorphDB,
+                          morph_stats_config,
+                          n_workers=1,
+                          output_pdf: str = 'morphometrics.pdf'):
     """Create plot to compare morphometrics of neurons.
 
     For axonal, basal and apical dendrites, and all dendrites,
@@ -61,30 +99,11 @@ def compare_morphometrics(data: List[Tuple[Path, Path]],
     between different morphology_paths.
 
     Args:
-        data: list of 2-tuples (path to neurondb, path to morphology folder)
+        db: a morphology db
         morph_stats_config: a config of morphometrics in the NeuroM morph-stat format
             See: https://neurom.readthedocs.io/en/latest/morph_stats.html
+        n_workers: the number of workers
+        output_pdf: the path to the output PDF
     """
-
-    L.info('Get masses from morphologies')
-    fat = None
-    all_mtype = None
-    morph_stats_config = morph_stats_config or CONFIG_TOTAL_LENGTH
-
-    for i, df in enumerate(starmap(neurondb_dataframe, data)):
-        index = ['mtype', 'neurite_type']
-        masses = _get_masses(df, morph_stats_config)
-        by_mtype_neurite = masses.groupby(index).mean()
-        by_neurite = masses.groupby('neurite_type').mean()
-        suffix = str(i)
-        if i == 0:
-            fat = by_mtype_neurite
-            all_mtype = by_neurite
-        else:
-            fat = fat.join(by_mtype_neurite, rsuffix=suffix)
-            all_mtype = all_mtype.join(by_neurite, rsuffix=suffix)
-
-    all_mtype = all_mtype.reset_index()
-    all_mtype['mtype'] = 'ALL'
-
-    return pd.concat([all_mtype, fat.reset_index()]).reset_index()
+    df = db.features(morph_stats_config, n_workers=n_workers)
+    pdf_all_metrics_by_metric(df, output_pdf)
