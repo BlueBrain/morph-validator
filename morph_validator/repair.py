@@ -45,7 +45,7 @@ def pdf_all_metrics_by_metric(metrics: pd.DataFrame,  # pylint: disable=too-many
 
     '''
     idx = pd.IndexSlice
-    df = metrics.loc[:, idx[['neuron', 'all'], :]]
+    df = metrics.loc[:, idx[['properties', 'all'], :]]
 
     metrics = metrics.loc[:, idx[['all'], :]].columns.droplevel()
     metrics = metrics[metrics.str.startswith('mean_')]

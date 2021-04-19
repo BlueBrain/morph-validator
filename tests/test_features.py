@@ -13,7 +13,7 @@ def test_get_soma_feature():
     for neurite in features.NeuriteType:
         area = features._get_soma_feature('soma_surface_areas', neuron, neurite)
         if neurite == NeuriteType.soma:
-            assert np.allclose(area, np.array([370.96746105]), 1e-10, 1e-10)
+            assert np.allclose(area, np.array([370.9672678]), 1e-10, 1e-10)
         else:
             assert area.size == 0
 
