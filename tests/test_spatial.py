@@ -13,7 +13,7 @@ from morph_validator.spatial import\
     sample_morph_voxel_values, _count_values_in_bins,\
     count_cells_points_distribution, relative_depth_volume
 from voxcell import VoxelData
-from bluepy.v2 import Circuit
+from bluepy import Circuit
 from tests.utils import TEST_DATA_DIR
 
 SPATIAL_DATA_DIR = TEST_DATA_DIR / 'spatial'

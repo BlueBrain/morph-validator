@@ -4,7 +4,7 @@ import numpy as np
 from scipy.ndimage import correlate
 import pandas as pd
 
-from bluepy.v2 import Circuit, Cell
+from bluepy import Circuit, Cell
 import neurom as nm
 
 
@@ -178,7 +178,7 @@ def count_cells_points_distribution(
     """
     counters = {}
     for gid in cell_ids:
-        morph = circuit.morph.get(gid, transform=True)
+        morph = nm.core.Neuron(circuit.morph.get(gid, transform=True))
         cell_values = sample_morph_voxel_values(
             morph, sample_distance, voxeldata, out_of_bounds_value, [nm.BASAL_DENDRITE, nm.AXON])
         for neurite_type, values in cell_values.items():

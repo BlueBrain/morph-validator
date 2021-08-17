@@ -30,12 +30,12 @@ def test_collect_features():
     discrete_features, continuous_features = features.collect(files_per_mtype)
     assert set(discrete_features.columns) - set(features.DISCRETE_FEATURES) == set()
     assert set(continuous_features.columns) - set(features.CONTINUOUS_FEATURES) == set()
-    expected_index = {(mtype, filename, neurite.name)
+    expected_index = {(mtype, filename + '.h5', neurite.name)
                       for mtype, filenames in filenames_per_mtype.items()
                       for filename in filenames
                       for neurite in NeuriteType}
-    assert set(discrete_features.index) - expected_index == set()
-    assert set(continuous_features.index) - expected_index == set()
+    assert set(discrete_features.index) == expected_index
+    assert set(continuous_features.index) == expected_index
     for col in continuous_features.to_numpy():
         for cell in col:
             assert isinstance(cell, list)

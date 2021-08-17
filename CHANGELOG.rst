@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Version 0.2.4
+-------------
+
+- Use BluePy >= 2.3.0
+
 Version 0.2.3
 -------------
 
