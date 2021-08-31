@@ -16,7 +16,7 @@ def iter_positions(morph, sample_distance, neurite_filter=None):
     is negligible.
 
     Args:
-        morph (neurom.FstNeuron): morphology
+        morph (neurom.core.Morphology): morphology
         sample_distance (int): points sampling distance (in um)
         neurite_filter: filter neurites, see ``neurite_filter`` of ``neurom.iter_sections()``
 
@@ -109,7 +109,7 @@ def sample_morph_voxel_values(
     the value is out_of_bounds_value if the neurite is outside the voxeldata
 
     Arguments:
-        morphology (neurom.FstNeuron): cell morphology
+        morphology (neurom.core.Morphology): cell morphology
         sample_distance (int in um): sampling distance for neurite points
         voxel_data (voxcell.VoxelData): volumetric data to extract values from
         out_of_bounds_value: value to assign to neurites outside of voxeldata
@@ -178,7 +178,7 @@ def count_cells_points_distribution(
     """
     counters = {}
     for gid in cell_ids:
-        morph = nm.core.Neuron(circuit.morph.get(gid, transform=True))
+        morph = nm.core.Morphology(circuit.morph.get(gid, transform=True))
         cell_values = sample_morph_voxel_values(
             morph, sample_distance, voxeldata, out_of_bounds_value, [nm.BASAL_DENDRITE, nm.AXON])
         for neurite_type, values in cell_values.items():

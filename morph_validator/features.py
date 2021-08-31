@@ -21,12 +21,12 @@ FEATURES_INDEX = ['mtype', 'filename', 'neurite']
 DISCRETE_FEATURES = [
     'total_length',
     'total_area_per_neurite',
-    'soma_surface_areas',
-    'neurite_volumes',
-    'soma_volumes',
+    'soma_surface_area',
+    'total_volume_per_neurite',
+    'soma_volume',
     'number_of_sections',
     'number_of_bifurcations',
-    'number_of_terminations',
+    'number_of_leaves',
 ]
 CONTINUOUS_FEATURES = [
     'section_lengths',
@@ -53,8 +53,8 @@ def _get_soma_feature(feature: str, neuron, neurite: NeuriteType) -> np.array:
 
 
 _FEATURE_CUSTOM_GETTERS = {
-    'soma_surface_areas': partial(_get_soma_feature, 'soma_surface_areas'),
-    'soma_volumes': partial(_get_soma_feature, 'soma_volumes'),
+    'soma_surface_area': partial(_get_soma_feature, 'soma_surface_area'),
+    'soma_volume': partial(_get_soma_feature, 'soma_volume'),
 }
 
 
@@ -75,16 +75,16 @@ def _get_neuron_features(neuron, feature_names: List[str]) -> DataFrame:
             val = _FEATURE_CUSTOM_GETTERS[feature_name](neuron, neurite)
         else:
             val = nm.get(feature_name, neuron, neurite_type=neurite)
-        df.loc[neurite.name, feature_name] = val.tolist()
+        df.loc[neurite.name, feature_name] = val
     return df
 
 
 def _collect(file):
     """Inner function to collect in parallel."""
-    neuron = nm.load_neuron(str(file))
-    name = neuron.name
-    discrete = _get_neuron_features(neuron, DISCRETE_FEATURES)
-    continuous = _get_neuron_features(neuron, CONTINUOUS_FEATURES)
+    m = nm.load_morphology(file)
+    name = m.name
+    discrete = _get_neuron_features(m, DISCRETE_FEATURES)
+    continuous = _get_neuron_features(m, CONTINUOUS_FEATURES)
     return name, discrete, continuous
 
 

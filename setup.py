@@ -25,14 +25,14 @@ setup(
     license="BBP-internal-confidential",
     python_requires='>=3.6',
     install_requires=[
-        'pandas>=0.25,<1.3',
+        'pandas>=0.25,<1.3',  # version 1.3 does not sum list items of groupby
         'joblib>=0.14',
         'numpy>=1.14',
         'scipy>=1.3',
         'lxml>=4.3.4',
-        'morph-tool>=2.4.2',
-        'neurom>=2.0,<3.0',
-        'bluepy>=2.3.0',
+        'morph-tool>=2.9.0,<3.0',
+        'neurom>=3.0,<4.0',
+        'bluepy>=2.3.0,<3.0',
         'seaborn>=0.10.1',
         'tqdm>=4.46.0',
         'matplotlib>=2.2.0',

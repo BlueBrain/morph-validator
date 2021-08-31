@@ -9,9 +9,9 @@ from tests.utils import MORPHOLOGIES_DIR
 
 
 def test_get_soma_feature():
-    neuron = nm.load_neuron(MORPHOLOGIES_DIR / 'test' / 'Unknown' / 'ca3b-N2.CNG.swc')
+    neuron = nm.load_morphology(MORPHOLOGIES_DIR / 'test' / 'Unknown' / 'ca3b-N2.CNG.swc')
     for neurite in features.NeuriteType:
-        area = features._get_soma_feature('soma_surface_areas', neuron, neurite)
+        area = features._get_soma_feature('soma_surface_area', neuron, neurite)
         if neurite == NeuriteType.soma:
             assert np.allclose(area, np.array([370.9672678]), 1e-10, 1e-10)
         else:

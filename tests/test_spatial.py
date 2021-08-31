@@ -21,7 +21,7 @@ SPATIAL_DATA_DIR = TEST_DATA_DIR / 'spatial'
 
 def test_iter_positions():
     morph_path = SPATIAL_DATA_DIR / 'iter_positions.asc'
-    morph = nm.load_neuron(morph_path)
+    morph = nm.load_morphology(morph_path)
     expected_basal = np.array([
         [0., 11., 0., ],
         [0., 21., 0., ],
@@ -45,7 +45,7 @@ def test_iter_positions():
 
 
 def test_iter_positions_no_skips_branch_points():
-    morph = nm.load_neuron(SPATIAL_DATA_DIR / 'simple.swc')
+    morph = nm.load_morphology(SPATIAL_DATA_DIR / 'simple.swc')
     points = iter_positions(morph, 1, None)
     exp_points = np.array([
         [0, 1, 0],
@@ -89,7 +89,7 @@ def test_sample_morph_voxel_values():
         np.array([[[0], [1]], [[2], [3]]]),
         (25, 25, 25))
     morph_path = SPATIAL_DATA_DIR / 'sample_morph_points.asc'
-    morph = nm.load_neuron(morph_path)
+    morph = nm.load_morphology(morph_path)
     single_cell_values = sample_morph_voxel_values(
         morph, 10, voxeldata, out_of_bounds_value=-1)
     np.testing.assert_array_equal(
