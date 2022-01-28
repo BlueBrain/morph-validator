@@ -1,13 +1,19 @@
 #!/usr/bin/env python
+import importlib.util
 
-import imp
+from setuptools import setup, find_packages
 
-from setuptools import find_packages, setup
-
-VERSION = imp.load_source("", "morph_validator/version.py").__version__
-
-with open('README.rst', encoding='utf-8') as f:
+# read the contents of the README file
+with open("README.rst", "r", encoding="utf-8") as f:
     README = f.read()
+
+spec = importlib.util.spec_from_file_location(
+    "morph_validator.version",
+    "morph_validator/version.py",
+)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+VERSION = module.__version__
 
 setup(
     name="morph-validator",
@@ -20,10 +26,10 @@ setup(
     url="https://bbpteam.epfl.ch/documentation/projects/morph-validator",
     project_urls={
         "Tracker": "https://bbpteam.epfl.ch/project/issues/projects/NSETM/issues",
-        "Source": "ssh://bbpcode.epfl.ch/nse/morph-validator",
+        "Source": "git@bbpgitlab.epfl.ch:nse/morph-validator.git",
     },
     license="BBP-internal-confidential",
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
         'pandas>=0.25,<1.3',  # version 1.3 does not sum list items of groupby
         'joblib>=0.14',
@@ -42,6 +48,8 @@ setup(
         'Development Status :: 2 - Pre-Alpha',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 )

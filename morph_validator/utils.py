@@ -26,7 +26,7 @@ def get_mtype_files_db(neurondb_file: Path,
     mtype_dict = {mtype: list(set(df.path)) for mtype, df in df.groupby('mtype')}
 
     if not mtype_dict.keys():
-        raise ValueError('No mtypes in {}'.format(neurondb_file))
+        raise ValueError(f'No mtypes in {neurondb_file}')
 
     return mtype_dict
 
@@ -42,6 +42,6 @@ def get_mtype_files_dir(dir_: Path) -> Dict[str, List[Path]]:
         dict: dictionary of files per mtype
     """
     if not dir_.is_dir():
-        raise ValueError('"{}" must be a directory'.format(dir_))
+        raise ValueError(f'"{dir_}" must be a directory')
     return {mtype_dir.name: list(iter_morphology_files(mtype_dir))
             for mtype_dir in dir_.iterdir()}
