@@ -31,7 +31,10 @@ setup(
     license="BBP-internal-confidential",
     python_requires='>=3.7',
     install_requires=[
-        'pandas>=0.25,<1.3',  # version 1.3 does not sum list items of groupby
+        # Note: this was pinned to version '<1.3' b/c 'does not sum list items of groupby';
+        # however, the knowledge about this was lost - if you run into a groupby problem
+        # please make a test exhibiting the problem, so we can deal with it
+        'pandas>=0.25',
         'joblib>=0.14',
         'numpy>=1.14',
         'scipy>=1.3',
